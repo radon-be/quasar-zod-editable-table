@@ -1,4 +1,4 @@
-import { defineStore, acceptHMRUpdate } from 'pinia';
+import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { createHealthcareProvider, type HealthcareProvider } from '../healthcare-provider.schema';
 

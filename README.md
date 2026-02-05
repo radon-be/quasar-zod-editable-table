@@ -1,31 +1,77 @@
-Quasar App Extension zod-table
-===
+# Quasar App Extension Zod Table
 
-_Be sure to change this readme as appropriate for your app extension._
+An editable table component for Quasar that automatically generates columns and validation from a Zod v4 schema.
 
-_Think about the organization of this file and how the information will be beneficial to the user._
+## Install
 
-> Add a short description of your App Extension. What does it do? How is it beneficial? Why would someone want to use it?
+To install this Quasar App Extension, run:
 
-Editable table that takes the column definitions from a zod schema
-
-# Install
 ```bash
-quasar ext add zod-table
-```
-Quasar CLI will retrieve it from the NPM registry and install the extension to your project.
-
-
-# Uninstall
-```bash
-quasar ext remove zod-table
+quasar ext add @radon-be/zod-table
 ```
 
-# Info
-> Add longer information here that will help the user of your app extension.
+Or install via npm:
 
-# Other Info
-> Add other information that's not as important to know
+```bash
+npm install @radon-be/quasar-app-extension-zod-table
+```
 
-# Donate
-If you appreciate the work that went into this App Extension, please consider [donating to Quasar](https://donate.quasar.dev).
+## Usage
+
+Use the `ZodTable` component in your Vue files.
+
+```vue
+<template>
+  <ZodTable
+    title="My Users"
+    :schema="userSchema"
+    :rows="rows"
+    @update:rows="handleUpdate"
+  />
+</template>
+
+<script setup lang="ts">
+import { ref } from 'vue';
+import { z } from 'zod';
+
+const userSchema = z.object({
+  id: z.number().readonly(),
+  name: z.string().min(1, 'Name is required'),
+  email: z.string().email(),
+  role: z.enum(['admin', 'user']),
+  age: z.number().min(18).optional()
+});
+
+const rows = ref([
+  { id: 1, name: 'Alice', email: 'alice@example.com', role: 'admin', age: 30 },
+  { id: 2, name: 'Bob', email: 'bob@example.com', role: 'user', age: 25 }
+]);
+
+function handleUpdate(newRows) {
+  rows.value = newRows;
+}
+</script>
+```
+
+## Features
+
+- **Schema Driven**: Columns are generated automatically from Zod object definition.
+- **Validation**: Input cells validate against the Zod schema.
+- **Navigation**: Use Tab / Shift+Tab to navigate between cells efficiently.
+- **Quasar Integration**: Built on top of `q-table` and `q-input`.
+
+## Props
+
+| Prop | Type | Description |
+| --- | --- | --- |
+| `schema` | `ZodObject` | The Zod schema defining the table structure. |
+| `rows` | `Array` | The data rows to display. |
+| `title` | `String` | Table title. |
+
+## Events
+
+- `@update:rows`: Emitted when data changes.
+
+## License
+
+MIT

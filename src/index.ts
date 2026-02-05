@@ -9,6 +9,6 @@ import { IndexAPI } from '@quasar/app-vite';
 
 export default function (api: IndexAPI) {
   api.extendQuasarConf((conf) => {
-    conf.boot?.push('~@radon/quasar-app-extension-zod-table/dist/boot/register.js');
+    conf.boot?.push('~@radon-be/quasar-app-extension-zod-table/dist/boot/register.js');
   });
 }
