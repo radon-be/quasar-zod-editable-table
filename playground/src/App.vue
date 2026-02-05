@@ -1,48 +1,36 @@
 <template>
-  <div class="q-pa-md"></div>
+  <div class="q-pa-md">
+    <editable-table
+      row-key="id"
+      :row-model="HealthcareProviderSchema"
+      :data="store.data"
+      flat
+      bordered
+      header-class="text-h6 bg-blue text-white"
+      header-style="font-size: 1rem;"
+      :editable="true"
+      :editable-columns="['*']"
+      :hide-columns="['id']"
+      :column-labels="{
+        requestCounter: 'Teller',
+        firstName: 'Voornaam',
+        name: 'Familienaam',
+        address: 'Adres',
+        docType: 'Soort'
+      }"
+      :update-row="store.updateRow"
+      :add-row="store.addRow"
+      :delete-row="store.deleteRow"
+      :initial-rows-per-page="10"
+      :actions="['add', 'clone', 'delete']"
+    />
+  </div>
 </template>
 
 <script setup lang="ts">
-  import { ref } from 'vue';
-  import z from 'zod';
+  import EditableTable from '../../src/component/ZodTable.vue';
+  import { HealthcareProviderSchema } from './healthcare-provider.schema';
 
-  const userSchema = z.object({
-    id: z.number(),
-    name: z.string(),
-    age: z.number(),
-    role: z.enum(['admin', 'user', 'guest']),
-    isActive: z.boolean()
-  });
-
-  type User = z.infer<typeof userSchema>;
-
-  const users = ref<User[]>([
-    { id: 1, name: 'Alice', age: 30, role: 'admin', isActive: true },
-    { id: 2, name: 'Bob', age: 25, role: 'user', isActive: false }
-  ]);
-
-  const addRow = (row?: User) => {
-    const newId = Math.max(...users.value.map((u) => u.id), 0) + 1;
-    const newUser: User = row
-      ? { ...row, id: newId }
-      : {
-          id: newId,
-          name: 'New User',
-          age: 18,
-          role: 'user',
-          isActive: true
-        };
-    users.value.push(newUser);
-  };
-
-  const updateRow = (row: User) => {
-    const index = users.value.findIndex((u) => u.id === row.id);
-    if (index !== -1) {
-      users.value[index] = row;
-    }
-  };
-
-  const deleteRow = (row: User) => {
-    users.value = users.value.filter((u) => u.id !== row.id);
-  };
+  import { useTableExampleStore } from './stores/healthcareProviderStore';
+  const store = useTableExampleStore();
 </script>
