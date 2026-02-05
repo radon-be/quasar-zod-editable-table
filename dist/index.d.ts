@@ -4,7 +4,5 @@
  *
  * Docs: https://quasar.dev/app-extensions/development-guide/index-api
  */
-
-export default function (api) {
-  //
-}
+import { IndexAPI } from '@quasar/app-vite';
+export default function (api: IndexAPI): void;

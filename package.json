@@ -5,8 +5,13 @@
   "author": "Stefaan Vandevelde",
   "license": "MIT",
   "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
-    "test": "echo \"No test specified\" && exit 0"
+    "test": "echo \"No test specified\" && exit 0",
+    "build": "tsc && copyfiles -u 1 src/**/*.vue dist",
+    "watch": "tsc --watch",
+    "prepublishOnly": "npm run build"
   },
   "repository": {
     "type": "git",
@@ -18,5 +23,11 @@
     "node": ">= 12.2.0",
     "npm": ">= 5.6.0",
     "yarn": ">= 1.6.0"
+  },
+  "devDependencies": {
+    "@quasar/app-vite": "^2.4.0",
+    "@types/node": "^25.2.0",
+    "copyfiles": "^2.4.1",
+    "typescript": "^5.9.3"
   }
 }
