@@ -3,6 +3,4 @@ export interface ColumnOption<T = any> {
   options: T[];
   optionLabel?: string | ((opt: T) => string);
   optionValue?: string | ((opt: T) => any);
-  emitValue?: boolean;
-  mapOptions?: boolean;
 }

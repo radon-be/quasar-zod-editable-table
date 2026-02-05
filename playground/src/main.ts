@@ -1,22 +1,24 @@
-import { createApp } from 'vue';
-import { createPinia } from 'pinia';
-import { Quasar } from 'quasar';
-import '@quasar/extras/material-icons/material-icons.css';
-import 'quasar/src/css/index.sass';
+import { createApp } from 'vue'
+import { createPinia } from 'pinia'
+import { Quasar, Dialog } from 'quasar'
+import '@quasar/extras/material-icons/material-icons.css'
+import 'quasar/src/css/index.sass'
 
-import App from './App.vue';
+import App from './App.vue'
 
-const app = createApp(App);
-const pinia = createPinia();
+const app = createApp(App)
+const pinia = createPinia()
 
-app.use(pinia);
+app.use(pinia)
 app.use(Quasar, {
-  plugins: {}
-});
+  plugins: {
+    Dialog,
+  },
+})
 
 // Register the component manually since we are not running the app extension script in this lite setup
 // In a full Quasar CLI app, the app extension would handle this.
-import ZodTable from '../../src/component/ZodTable.vue';
-app.component('ZodTable', ZodTable);
+import ZodTable from '../../src/component/ZodTable.vue'
+app.component('ZodTable', ZodTable)
 
-app.mount('#app');
+app.mount('#app')

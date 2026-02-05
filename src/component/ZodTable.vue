@@ -33,7 +33,7 @@
               @update:model-value="() => props.updateRow?.(slotProps.row)"
             />
             <template v-else>
-              {{ renderCell(slotProps.row[col.name], col) }}
+              {{ renderNonEdit(slotProps.row[col.name], col) }}
               <template v-if="col.editable">
                 <q-popup-edit
                   v-model="slotProps.row[col.name]"
@@ -44,25 +44,24 @@
                   <q-input
                     v-if="col.colEditType === 'text'"
                     v-model="scope.value"
-                    v-bind="inputProps(col.colEditType, scope, slotProps.rowIndex, col.name)"
+                    v-bind="inputProps(scope, slotProps.rowIndex, col.name)"
                   />
                   <q-input
                     v-if="['integer', 'real'].includes(col.colEditType)"
                     v-model.number="scope.value"
                     v-bind="{
-                      ...inputProps(col.colEditType, scope, slotProps.rowIndex, col.name),
-                      ...numericInputHandlers(col.colEditType, scope)
+                      ...inputProps(scope, slotProps.rowIndex, col.name),
+                      ...numericInputHandlers(col.colEditType, scope),
                     }"
                   />
                   <q-select
-                    v-if="col.colEditType === 'dropdown'"
+                    v-if="['dynamic-dropdown', 'static-dropdown'].includes(col.colEditType)"
                     v-model="scope.value"
                     :options="col.options"
-                    :option-label="col.optionLabel"
-                    :option-value="col.optionValue"
-                    :emit-value="col.emitValue"
-                    :map-options="col.mapOptions"
-                    v-bind="inputProps(col.colEditType, scope, slotProps.rowIndex, col.name)"
+                    v-bind="{
+                      ...inputProps(scope, slotProps.rowIndex, col.name),
+                      ...getDropdownProps(col),
+                    }"
                     @update:model-value="scope.set"
                   />
                 </q-popup-edit>
@@ -115,282 +114,222 @@
 </template>
 
 <script setup lang="ts" generic="T extends z.ZodRawShape">
-  import z from 'zod';
-  import { computed, nextTick, ref } from 'vue';
-  import { type QTableColumn, useQuasar } from 'quasar';
-  import type { ColumnOption } from './types';
+import z from 'zod'
+import { computed, nextTick } from 'vue'
+import { type QTableColumn, useQuasar } from 'quasar'
+import type { ColumnOption } from './types'
+import { getColumnMetadata, type ColEditType } from './zod-utils'
+import { useTableFocus } from './useTableFocus'
 
-  type RowModel = z.ZodObject<T>;
-  type Row = z.infer<RowModel>;
-  // eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
-  type RowKey = keyof Row | '*';
+//TODO! dropdowns altijd tonen, ook in niet-edit modus
+//TODO! navigatie in de tabel kritisch bekijken, is dat te vereenvoudigen ?
 
-  defineOptions({
-    inheritAttrs: false
-  });
+interface ZodTableColumn extends QTableColumn {
+  colEditType: ColEditType
+  options?: unknown[]
+  optionLabel?: string | ((opt: unknown) => string)
+  optionValue?: string | ((opt: unknown) => unknown)
+  colSchema?: z.ZodType
+}
 
-  const props = withDefaults(
-    defineProps<{
-      columnLabels?: Partial<Record<RowKey, string>>;
-      columnOptions?: Partial<Record<RowKey, ColumnOption>>;
-      rowKey: string;
-      rowModel: RowModel;
-      data?: Row[];
-      headerClass?: string;
-      headerStyle?: string;
-      editable: boolean;
-      editableColumns?: Array<RowKey>;
-      hideColumns?: Array<RowKey>;
-      updateRow?: (row: Row) => void;
-      addRow?: (row?: Row) => void;
-      deleteRow?: (row: Row) => void;
-      initialRowsPerPage?: number;
-      actions?: Action[];
-    }>(),
-    {
-      rowModel: () => z.object({}) as RowModel,
-      data: () => [],
-      headerClass: '',
-      headerStyle: '',
-      initialRowsPerPage: 5,
-      actions: () => []
-    }
-  );
+type RowModel = z.ZodObject<T>
+type Row = z.infer<RowModel>
+type RowKey = keyof Row | '*'
 
-  const capitalize = (str: string) => str.charAt(0).toUpperCase() + str.slice(1);
-  type PropType = { type: 'string' | 'integer' | 'number' | 'boolean'; enum?: string[] };
-  type ColEditType = 'text' | 'integer' | 'real' | 'dropdown' | 'checkbox';
-  type Action = 'add' | 'clone' | 'delete';
+defineOptions({
+  inheritAttrs: false,
+})
 
-  const totalRows = computed(() => props.data?.length || 0);
-  const rowsPerPageOptions = [3, 5, 7, 10, 15, 20, 25, 50];
+const props = withDefaults(
+  defineProps<{
+    columnLabels?: Partial<Record<RowKey, string>>
+    columnOptions?: Partial<Record<RowKey, ColumnOption>>
+    rowKey: string
+    rowModel: RowModel
+    data?: Row[]
+    headerClass?: string
+    headerStyle?: string
+    editable: boolean
+    editableColumns?: Array<RowKey>
+    hideColumns?: Array<RowKey>
+    updateRow?: (row: Row) => void
+    addRow?: (row?: Row) => void
+    deleteRow?: (row: Row) => void
+    initialRowsPerPage?: number
+    actions?: Action[]
+  }>(),
+  {
+    rowModel: () => z.object({}) as RowModel,
+    data: () => [],
+    headerClass: '',
+    headerStyle: '',
+    initialRowsPerPage: 5,
+    actions: () => [],
+  },
+)
 
-  const hasActions = computed(() => props.actions && props.actions.length > 0);
-  const canAdd = computed(() => props.actions?.includes('add'));
-  const canClone = computed(() => props.actions?.includes('clone'));
-  const canDelete = computed(() => props.actions?.includes('delete'));
+const capitalize = (str: string) => str.charAt(0).toUpperCase() + str.slice(1)
+type Action = 'add' | 'clone' | 'delete'
 
-  // Validate that required functions are provided for enabled actions
-  // TODO DRYer maken !
-  if (canAdd.value && !props.addRow) {
-    console.warn('[EditableTable] Action "add" is enabled but addRow prop is not provided');
-  }
-  if (canClone.value && !props.addRow) {
-    console.warn('[EditableTable] Action "clone" is enabled but addRow prop is not provided');
-  }
-  if (canDelete.value && !props.deleteRow) {
-    console.warn('[EditableTable] Action "delete" is enabled but deleteRow prop is not provided');
-  }
+const totalRows = computed(() => props.data?.length || 0)
+const rowsPerPageOptions = [3, 5, 7, 10, 15, 20, 25, 50]
 
-  const getPaginationRange = (page: number, rowsPerPage: number) => {
-    const firstRow = (page - 1) * rowsPerPage + 1;
-    const lastRow = Math.min(page * rowsPerPage, totalRows.value);
-    return { firstRow, lastRow };
-  };
+const hasActions = computed(() => props.actions && props.actions.length > 0)
+const canAdd = computed(() => props.actions?.includes('add') && props.addRow)
+const canClone = computed(() => props.actions?.includes('clone') && props.addRow)
+const canDelete = computed(() => props.actions?.includes('delete') && props.deleteRow)
 
-  const getColumnLabel = (key: string) => (props.columnLabels as Record<string, string> | undefined)?.[key];
+const getPaginationRange = (page: number, rowsPerPage: number) => {
+  const firstRow = (page - 1) * rowsPerPage + 1
+  const lastRow = Math.min(page * rowsPerPage, totalRows.value)
+  return { firstRow, lastRow }
+}
 
-  const $q = useQuasar();
+const getColumnLabel = (key: string) => (props.columnLabels as Record<string, string> | undefined)?.[key]
 
-  const confirmDelete = (row: Row) => {
-    $q.dialog({
-      title: 'Confirm Delete',
-      message: 'Are you sure you want to delete this row?',
-      cancel: true,
-      persistent: true
-    }).onOk(() => {
-      props.deleteRow?.(row);
-    });
-  };
+const $q = useQuasar()
 
-  const cloneRow = (row: Row) => {
-    const clonedRow = { ...row };
-    props.addRow?.(clonedRow);
-  };
+const { popupRefs, setPopupRef, moveFocus: focusMove } = useTableFocus()
 
-  const addNewRow = () => {
-    if (!props.addRow) return;
-    props.addRow();
-  };
+const confirmDelete = (row: Row) => {
+  $q.dialog({
+    title: 'Confirm Delete',
+    message: 'Are you sure you want to delete this row?',
+    cancel: true,
+    persistent: true,
+  }).onOk(() => {
+    props.deleteRow?.(row)
+  })
+}
 
+const cloneRow = (row: Row) => {
+  const clonedRow = { ...row }
+  props.addRow?.(clonedRow)
+}
+
+const addNewRow = () => {
+  if (!props.addRow) return
+  props.addRow()
+}
+
+const handleSave = (row: Row, colName: RowKey, newValue: string) => {
+  const key = colName as keyof Row
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const popupRefs = ref<Record<string, any>>({});
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const setPopupRef = (el: any, rowIndex: number, colName: string) => {
-    if (el) {
-      popupRefs.value[`${rowIndex}_${colName}`] = el;
-    }
-  };
+  ;(row as any)[key] = newValue
+  props.updateRow?.(row)
+}
 
-  const moveFocus = (rowIndex: number, currentColName: string, direction: 'next' | 'prev') => {
-    const visibleCols = columns.value;
-    const currentIdx = visibleCols.findIndex((c) => c.name === currentColName);
-    let targetRowIndex = rowIndex;
-    let targetColIndex = currentIdx + (direction === 'next' ? 1 : -1);
+const parseNumericValue = (colEditType: string, value: string | number | null) => {
+  const parser = colEditType === 'integer' ? parseInt : parseFloat
+  return value ? parser(value.toString()) : 0
+}
 
-    // Safety break to prevent infinite loops
-    let checks = 0;
-    const maxChecks = 1000;
+const numericInputHandlers = (colEditType: string, scope: { value: unknown; set: () => void; cancel: () => void }) => ({
+  'onUpdate:modelValue': (val: string | number | null) => {
+    scope.value = parseNumericValue(colEditType, val)
+  },
+  onBlur: (e: Event) => {
+    scope.value = parseNumericValue(colEditType, (e.target as HTMLInputElement).value)
+  },
+  type: 'number' as const,
+  'input-class': 'no-spinners',
+  step: colEditType === 'integer' ? ('1' as const) : ('any' as const),
+})
 
-    while (checks < maxChecks) {
-      checks++;
-
-      // Handle wrapping
-      if (targetColIndex >= visibleCols.length) {
-        targetRowIndex++;
-        targetColIndex = 0;
-      } else if (targetColIndex < 0) {
-        targetRowIndex--;
-        targetColIndex = visibleCols.length - 1;
-      }
-
-      // Check existence
-      // We rely on popupRefs to know if a cell is editable and rendered
-      const nextCol = visibleCols[targetColIndex];
-      const refKey = `${targetRowIndex}_${nextCol.name}`;
-
-      if (popupRefs.value[refKey]) {
-        popupRefs.value[refKey].show();
-        return;
-      }
-
-      // Stop if we went too far out of likely bounds (e.g. end of page)
-      if (direction === 'next' && targetRowIndex > rowIndex + 1) return;
-      if (direction === 'prev' && targetRowIndex < rowIndex - 1 && targetRowIndex < 0) return;
-
-      targetColIndex += direction === 'next' ? 1 : -1;
-    }
-  };
-
-  const handleSave = (row: Row, colName: RowKey, newValue: string) => {
-    // TypeScript can't narrow generic indexed types, so we need to suppress this
-    (row as any)[colName] = newValue;
-    props.updateRow?.(row);
-  };
-
-  const parseNumericValue = (colEditType: string, value: string | number | null) => {
-    const parser = colEditType === 'integer' ? parseInt : parseFloat;
-    return value ? parser(value.toString()) : 0;
-  };
-
-  const numericInputHandlers = (
-    colEditType: string,
-    scope: { value: unknown; set: () => void; cancel: () => void }
-  ) => ({
-    'onUpdate:modelValue': (val: string | number | null) => {
-      scope.value = parseNumericValue(colEditType, val);
-    },
-    onBlur: (e: Event) => {
-      scope.value = parseNumericValue(colEditType, (e.target as HTMLInputElement).value);
-    },
-    type: 'number' as const,
-    'input-class': 'no-spinners',
-    step: colEditType === 'integer' ? ('1' as const) : ('any' as const)
-  });
-
-  const inputProps = (
-    editType: ColEditType,
-    scope: { value: unknown; set: () => void; cancel: () => void },
-    rowIndex: number,
-    colName: string
-  ) => {
+const getDropdownProps = (col: ZodTableColumn) => {
+  if (col.colEditType === 'dynamic-dropdown') {
     return {
-      autofocus: true,
-      dense: true,
-      onKeydown: (e: KeyboardEvent) => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          scope.set();
-        }
-        if (e.key === 'Tab') {
-          e.preventDefault();
-          scope.set();
-          // Wait for the popup to close and value to settle
-          nextTick(() => {
-            moveFocus(rowIndex, colName, e.shiftKey ? 'prev' : 'next');
-          });
-        }
+      'option-label': col.optionLabel,
+      'option-value': col.optionValue,
+      'emit-value': true,
+      'map-options': true,
+    }
+  }
+  return {}
+}
+
+const inputProps = (
+  scope: { value: unknown; set: () => void; cancel: () => void },
+  rowIndex: number,
+  colName: string,
+) => {
+  return {
+    autofocus: true,
+    dense: true,
+    onKeydown: (e: KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        e.preventDefault()
+        scope.set()
       }
-    };
-  };
+      if (e.key === 'Tab') {
+        e.preventDefault()
+        scope.set()
+        // Wait for the popup to close and value to settle
+        nextTick(() => {
+          focusMove(rowIndex, colName, e.shiftKey ? 'prev' : 'next', columns.value)
+        })
+      }
+    },
+  }
+}
 
-  const CONVERT_COL_TYPES: Record<string, ColEditType> = {
-    string: 'text',
-    integer: 'integer',
-    number: 'real',
-    boolean: 'checkbox'
-  };
+const columns = computed<ZodTableColumn[]>(() =>
+  Object.keys(props.rowModel.shape)
+    .filter((key) => !(props.hideColumns ?? []).includes(key as RowKey))
+    .map((key) => {
+      const keyCast = key as RowKey
+      const colSchema = props.rowModel.shape[key] as z.ZodType
+      const meta = getColumnMetadata(colSchema)
 
-  const jsonSchema = computed(() => (props.rowModel as any).toJSONSchema());
+      const externalOptions = props.columnOptions?.[keyCast]
 
-  const columns = computed<QTableColumn[]>(() =>
-    Object.keys(props.rowModel.shape)
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-      .filter((key) => !(props.hideColumns ?? []).includes(key as RowKey))
-      .map((key) => {
-        const colSchema = jsonSchema.value.properties?.[key] as PropType;
+      // If dynamic or enum, it's a dropdown
+      const colEditType: ColEditType = externalOptions ? 'dynamic-dropdown' : meta.colEditType
 
-        // Handle nullable/optional types which might appear as arrays (e.g. ["string", "null"])
-        const schemaType = Array.isArray(colSchema.type)
-          ? colSchema.type.find((t: string) => t !== 'null')
-          : colSchema.type;
+      const editable =
+        props.editable && (props.editableColumns?.includes(keyCast) || props.editableColumns?.includes('*'))
 
-        const keyCast = key as RowKey;
-        const externalOptions = props.columnOptions?.[keyCast];
+      const options = externalOptions?.options ?? meta.options ?? []
+      const optionLabel = externalOptions?.optionLabel ?? 'label'
+      const optionValue = externalOptions?.optionValue ?? 'value'
 
-        const colEditType: ColEditType =
-          colSchema.enum || externalOptions ? 'dropdown' : (CONVERT_COL_TYPES[schemaType as string] ?? 'text');
+      return {
+        name: key,
+        label: getColumnLabel(key) ?? capitalize(key),
+        field: key,
+        align: 'left' as const,
+        sortable: true,
+        headerClasses: props.headerClass,
+        headerStyle: props.headerStyle,
+        colEditType,
+        editable,
+        options,
+        optionLabel,
+        optionValue,
+        colSchema,
+      }
+    }),
+)
+const renderNonEdit = (val: unknown, col: ZodTableColumn) => {
+  if (col.colEditType !== 'dynamic-dropdown') {
+    return val
+  }
 
-        const editable =
-          props.editable &&
-          // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-          (props.editableColumns?.includes(keyCast) || props.editableColumns?.includes('*'));
+  const selected = col.options?.find((opt: unknown) => {
+    const optVal =
+      typeof col.optionValue === 'function'
+        ? col.optionValue(opt)
+        : (opt as Record<string, unknown>)[col.optionValue as string]
+    return optVal === val
+  })
 
-        const options = externalOptions ? externalOptions.options : (colSchema.enum ?? []);
-        const optionLabel = externalOptions?.optionLabel;
-        const optionValue = externalOptions?.optionValue;
-        const emitValue = externalOptions?.emitValue ?? !!optionValue;
-        const mapOptions = externalOptions?.mapOptions ?? !!optionValue;
-
-        return {
-          name: key,
-          label: getColumnLabel(key) ?? capitalize(key),
-          field: key,
-          align: 'left' as const,
-          sortable: true,
-          headerClasses: props.headerClass,
-          headerStyle: props.headerStyle,
-          colEditType,
-          editable,
-          options,
-          optionLabel,
-          optionValue,
-          emitValue,
-          mapOptions
-        };
-      })
-  );
-
-  // Helper to render the cell value
-  // If options are objects, we might need to find the label corresponding to the value
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const renderCell = (val: any, col: any) => {
-    if (col.colEditType !== 'dropdown' || !col.optionValue || !col.options) {
-      return val;
-    }
-    // Try to find the selected option to display its label
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const selected = col.options.find((opt: any) => {
-      const optVal = typeof col.optionValue === 'function' ? col.optionValue(opt) : opt[col.optionValue];
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
-      return optVal === val;
-    });
-
-    if (selected) {
-      return typeof col.optionLabel === 'function' ? col.optionLabel(selected) : selected[col.optionLabel || 'label'];
-    }
-    return val;
-  };
+  if (selected) {
+    return typeof col.optionLabel === 'function'
+      ? col.optionLabel(selected)
+      : (selected as Record<string, unknown>)[col.optionLabel || 'label']
+  }
+  return val
+}
 </script>
 
 <style scoped></style>
