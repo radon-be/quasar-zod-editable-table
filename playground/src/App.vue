@@ -1,21 +1,5 @@
 <template>
-  <div class="q-pa-md">
-    <h3>Test Playground</h3>
-    <p>Below is the component from the extension:</p>
-    <MyButton />
-    <q-separator class="q-my-md" />
-    <ZodTable
-      title="Users"
-      row-key="id"
-      :row-model="userSchema"
-      :data="users"
-      editable
-      :actions="['add', 'clone', 'delete']"
-      :add-row="addRow"
-      :update-row="updateRow"
-      :delete-row="deleteRow"
-    />
-  </div>
+  <div class="q-pa-md"></div>
 </template>
 
 <script setup lang="ts">
