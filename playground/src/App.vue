@@ -18,6 +18,7 @@
         address: 'Adres',
         docType: 'Soort'
       }"
+      :column-options="colOpts"
       :update-row="store.updateRow"
       :add-row="store.addRow"
       :delete-row="store.deleteRow"
@@ -32,6 +33,19 @@
   import { HealthcareProviderSchema } from './healthcare-provider.schema';
 
   import { useTableExampleStore } from './stores/healthcareProviderStore';
+  const colOpts = {
+    docType: {
+      options: [
+        { id: 'A', label: 'dokter' },
+        { id: 'B', label: 'bioloog' },
+        { id: 'C', label: 'dierenarts' },
+        { id: 'D', label: 'apotheekster' },
+        { id: 'E', label: 'verpleegkundige' }
+      ],
+      optionLabel: 'label',
+      optionValue: 'id'
+    }
+  };
   const store = useTableExampleStore();
   // test
 </script>

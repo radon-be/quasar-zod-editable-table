@@ -33,7 +33,7 @@
               @update:model-value="() => props.updateRow?.(slotProps.row)"
             />
             <template v-else>
-              {{ slotProps.row[col.name] }}
+              {{ renderCell(slotProps.row[col.name], col) }}
               <template v-if="col.editable">
                 <q-popup-edit
                   v-model="slotProps.row[col.name]"
@@ -57,7 +57,11 @@
                   <q-select
                     v-if="col.colEditType === 'dropdown'"
                     v-model="scope.value"
-                    :options="col.enumOptions"
+                    :options="col.options"
+                    :option-label="col.optionLabel"
+                    :option-value="col.optionValue"
+                    :emit-value="col.emitValue"
+                    :map-options="col.mapOptions"
                     v-bind="inputProps(col.colEditType, scope, slotProps.rowIndex, col.name)"
                     @update:model-value="scope.set"
                   />
@@ -114,6 +118,7 @@
   import z from 'zod';
   import { computed, nextTick, ref } from 'vue';
   import { type QTableColumn, useQuasar } from 'quasar';
+  import type { ColumnOption } from './types';
 
   type RowModel = z.ZodObject<T>;
   type Row = z.infer<RowModel>;
@@ -127,6 +132,7 @@
   const props = withDefaults(
     defineProps<{
       columnLabels?: Partial<Record<RowKey, string>>;
+      columnOptions?: Partial<Record<RowKey, ColumnOption>>;
       rowKey: string;
       rowModel: RowModel;
       data?: Row[];
@@ -165,6 +171,7 @@
   const canDelete = computed(() => props.actions?.includes('delete'));
 
   // Validate that required functions are provided for enabled actions
+  // TODO DRYer maken !
   if (canAdd.value && !props.addRow) {
     console.warn('[EditableTable] Action "add" is enabled but addRow prop is not provided');
   }
@@ -328,15 +335,22 @@
           ? colSchema.type.find((t: string) => t !== 'null')
           : colSchema.type;
 
-        const colEditType: ColEditType = colSchema.enum
-          ? 'dropdown'
-          : (CONVERT_COL_TYPES[schemaType as string] ?? 'text');
+        const keyCast = key as RowKey;
+        const externalOptions = props.columnOptions?.[keyCast];
+
+        const colEditType: ColEditType =
+          colSchema.enum || externalOptions ? 'dropdown' : (CONVERT_COL_TYPES[schemaType as string] ?? 'text');
 
         const editable =
           props.editable &&
           // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-          (props.editableColumns?.includes(key as RowKey) || props.editableColumns?.includes('*'));
-        const enumOptions = colEditType === 'dropdown' && colSchema.enum ? colSchema.enum : [];
+          (props.editableColumns?.includes(keyCast) || props.editableColumns?.includes('*'));
+
+        const options = externalOptions ? externalOptions.options : (colSchema.enum ?? []);
+        const optionLabel = externalOptions?.optionLabel;
+        const optionValue = externalOptions?.optionValue;
+        const emitValue = externalOptions?.emitValue ?? !!optionValue;
+        const mapOptions = externalOptions?.mapOptions ?? !!optionValue;
 
         return {
           name: key,
@@ -348,10 +362,35 @@
           headerStyle: props.headerStyle,
           colEditType,
           editable,
-          enumOptions
+          options,
+          optionLabel,
+          optionValue,
+          emitValue,
+          mapOptions
         };
       })
   );
+
+  // Helper to render the cell value
+  // If options are objects, we might need to find the label corresponding to the value
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const renderCell = (val: any, col: any) => {
+    if (col.colEditType !== 'dropdown' || !col.optionValue || !col.options) {
+      return val;
+    }
+    // Try to find the selected option to display its label
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const selected = col.options.find((opt: any) => {
+      const optVal = typeof col.optionValue === 'function' ? col.optionValue(opt) : opt[col.optionValue];
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
+      return optVal === val;
+    });
+
+    if (selected) {
+      return typeof col.optionLabel === 'function' ? col.optionLabel(selected) : selected[col.optionLabel || 'label'];
+    }
+    return val;
+  };
 </script>
 
 <style scoped></style>
