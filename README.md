@@ -15,6 +15,20 @@ Or install via npm:
 ```bash
 npm install @radon-be/quasar-app-extension-zod-table
 ```
+## Features
+
+- Global `editable` an per-column `editable-columns` props to enable/disable editing
+- `hide-columns` props to hide some columns from the dataset
+- `column-labels` prop to re-label columns
+- Visual indicators (flat, bordered, ...) are passed-through
+- `header-class` and `header-stype` props to customize the headers
+- Optional `actions` column
+- `string` data is edited in a regular `q-input`
+- `number` data in a specialised `q-input` and cleaned up after editing (e.g. 00034 -> 34)
+- `bool` data is represented as a checkbox
+- `enum` data as a dropdown
+- In edit mode, TAB and Shoft+TAB jump to the next/previous column while remaining in edit mode
+- Still in Edit mode: `Enter` key = save ; `Esc` key = cancel
 
 ## Usage
 
