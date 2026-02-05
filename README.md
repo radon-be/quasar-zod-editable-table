@@ -94,7 +94,7 @@ function handleUpdate(updatedRow: User) {
 | `add-row` | `Function` | Callback for adding rows. |
 | `delete-row` | `Function` | Callback for deleting rows. |
 | `editable` | `Boolean` | Enable editing mode. |
-| `editable-columns`| `Array` | List of keys (or `['*']`) that are editable. |
+| `editable-columns` | `Array` | List of keys (or `['*']`) that are editable. |
 
 ## License
 
