@@ -1,23 +1,13 @@
 <template>
-  <q-table
-    :columns="columns"
-    :rows="props.data"
-    :row-key="props.rowKey"
-    :rows-per-page-options="rowsPerPageOptions"
-    :pagination="{ rowsPerPage: props.initialRowsPerPage }"
-    v-bind="$attrs"
-  >
+  <q-table :columns="columns" :rows="props.data" :row-key="props.rowKey" :rows-per-page-options="rowsPerPageOptions"
+    :pagination="{ rowsPerPage: props.initialRowsPerPage }" v-bind="$attrs">
     <template v-slot:header="headerProps">
       <q-tr :props="headerProps">
         <q-th v-for="col in headerProps.cols" :key="col.name" :props="headerProps">
           {{ col.label }}
         </q-th>
-        <q-th
-          v-if="hasActions && props.editable"
-          auto-width
-          :class="props.headerClass"
-          :style="props.headerStyle"
-        ></q-th>
+        <q-th v-if="hasActions && props.editable" auto-width :class="props.headerClass"
+          :style="props.headerStyle"></q-th>
       </q-tr>
     </template>
     <template v-slot:body="slotProps">
@@ -25,45 +15,25 @@
         <q-td v-for="col in slotProps.cols" :key="col.name" :props="slotProps">
           <!-- Dynamic slot for custom cell rendering: body-cell-[name] -->
           <slot :name="`body-cell-${col.name}`" v-bind="slotProps" :col="col" :row="slotProps.row">
-            <q-checkbox
-              v-if="col.colEditType === 'checkbox'"
-              v-model="slotProps.row[col.name]"
-              dense
-              :disable="!col.editable"
-              @update:model-value="() => props.updateRow?.(slotProps.row)"
-            />
+            <q-checkbox v-if="col.colEditType === 'checkbox'" v-model="slotProps.row[col.name]" dense
+              :disable="!col.editable" @update:model-value="() => props.updateRow?.(slotProps.row)" />
             <template v-else>
               {{ renderNonEdit(slotProps.row[col.name], col) }}
               <template v-if="col.editable">
-                <q-popup-edit
-                  v-model="slotProps.row[col.name]"
-                  v-slot="scope"
-                  :ref="(el) => setPopupRef(el, slotProps.rowIndex, col.name)"
-                  @save="(newValue) => handleSave(slotProps.row, col.name, newValue)"
-                >
-                  <q-input
-                    v-if="col.colEditType === 'text'"
-                    v-model="scope.value"
-                    v-bind="inputProps(scope, slotProps.rowIndex, col.name)"
-                  />
-                  <q-input
-                    v-if="['integer', 'real'].includes(col.colEditType)"
-                    v-model.number="scope.value"
-                    v-bind="{
+                <q-popup-edit v-model="slotProps.row[col.name]" v-slot="scope"
+                  :ref="(el: any) => setPopupRef(el, slotProps.rowIndex, col.name)"
+                  @save="(newValue:any) => handleSave(slotProps.row, col.name, newValue)">
+                  <q-input v-if="col.colEditType === 'text'" v-model="scope.value"
+                    v-bind="inputProps(scope, slotProps.rowIndex, col.name)" />
+                  <q-input v-if="['integer', 'real'].includes(col.colEditType)" v-model.number="scope.value" v-bind="{
                       ...inputProps(scope, slotProps.rowIndex, col.name),
                       ...numericInputHandlers(col.colEditType, scope),
-                    }"
-                  />
-                  <q-select
-                    v-if="['dynamic-dropdown', 'static-dropdown'].includes(col.colEditType)"
-                    v-model="scope.value"
-                    :options="col.options"
-                    v-bind="{
+                    }" />
+                  <q-select v-if="['dynamic-dropdown', 'static-dropdown'].includes(col.colEditType)"
+                    v-model="scope.value" :options="col.options" v-bind="{
                       ...inputProps(scope, slotProps.rowIndex, col.name),
                       ...getDropdownProps(col),
-                    }"
-                    @update:model-value="scope.set"
-                  />
+                    }" @update:model-value="scope.set" />
                 </q-popup-edit>
               </template>
             </template>
@@ -77,26 +47,13 @@
     </template>
     <template v-slot:bottom="scope">
       <div class="row items-center full-width">
-        <q-btn
-          v-if="canAdd && props.editable"
-          label="Toevoegen"
-          icon="add"
-          color="primary"
-          flat
-          dense
-          @click="addNewRow"
-        />
+        <q-btn v-if="canAdd && props.editable" label="Toevoegen" icon="add" color="primary" flat dense
+          @click="addNewRow" />
         <q-space />
         <div class="row items-center">
           <span class="q-mr-md">Records per page:</span>
-          <q-select
-            :model-value="scope.pagination.rowsPerPage"
-            :options="rowsPerPageOptions"
-            dense
-            options-dense
-            borderless
-            @update:model-value="(val) => (scope.pagination.rowsPerPage = val)"
-          />
+          <q-select :model-value="scope.pagination.rowsPerPage" :options="rowsPerPageOptions" dense options-dense
+            borderless @update:model-value="(val: any) => (scope.pagination.rowsPerPage = val)" />
           <span class="q-ml-md">
             {{ getPaginationRange(scope.pagination.page, scope.pagination.rowsPerPage).firstRow }}-{{
               getPaginationRange(scope.pagination.page, scope.pagination.rowsPerPage).lastRow
@@ -114,12 +71,12 @@
 </template>
 
 <script setup lang="ts" generic="T extends z.ZodRawShape">
-import z from 'zod'
+import { useQuasar, type QTableColumn } from 'quasar'
 import { computed, nextTick } from 'vue'
-import { type QTableColumn, useQuasar } from 'quasar'
+import z from 'zod'
 import type { ColumnOption } from './types'
-import { getColumnMetadata, type ColEditType } from './zod-utils'
 import { useTableFocus } from './useTableFocus'
+import { getColumnMetadata, type ColEditType } from './zod-utils'
 
 //TODO! dropdowns altijd tonen, ook in niet-edit modus
 //TODO! navigatie in de tabel kritisch bekijken, is dat te vereenvoudigen ?
