@@ -5,9 +5,9 @@ import { createHealthcareProvider, type HealthcareProvider } from '../healthcare
 export const useTableExampleStore = defineStore('tableExample', () => {
   const data = ref<HealthcareProvider[]>(
     [
-      [1, 'Hilde', 'Moerman', 'Marke', 'dokter', 145, true],
-      [2, 'Karen', 'Bruyland', 'Kortrijk', 'bioloog', 0, true],
-      [3, 'Hendrik', 'De Bosschere ', 'Kortrijk', 'dierenarts', 10, false]
+      [1, 'Dokter', 'Bibber', 'Marke', 'dokter', 145, true],
+      [2, 'Louis', 'Pasteur', 'Kortrijk', 'bioloog', 0, true],
+      [3, 'Hippocrates', ' ', 'Kortrijk', 'Griek', 10, false]
     ].map(
       ([id, firstName, name, address, docType, rqc, active]) =>
         ({ id, firstName, name, address, docType, requestCounter: rqc, active }) as HealthcareProvider //prettier-ignore

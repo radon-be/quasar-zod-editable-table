@@ -30,9 +30,23 @@
     "copyfiles": "^2.4.1",
     "typescript": "^5.9.3"
   },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "quasar",
+    "vue",
+    "zod",
+    "table",
+    "component",
+    "app-extension"
+  ],
   "dependencies": {
-    "zod": "^3.24.1",
-    "zod-to-json-schema": "^3.20.0"
+    "zod": "^4.3.6"
   },
   "peerDependencies": {
     "quasar": "^2.0.0",
