@@ -38,18 +38,19 @@
                 <q-popup-edit
                   v-model="slotProps.row[col.name]"
                   v-slot="scope"
+                  :ref="(el) => setPopupRef(el, slotProps.rowIndex, col.name)"
                   @save="(newValue) => handleSave(slotProps.row, col.name, newValue)"
                 >
                   <q-input
                     v-if="col.colEditType === 'text'"
                     v-model="scope.value"
-                    v-bind="inputProps(col.colEditType, scope)"
+                    v-bind="inputProps(col.colEditType, scope, slotProps.rowIndex, col.name)"
                   />
                   <q-input
                     v-if="['integer', 'real'].includes(col.colEditType)"
                     v-model.number="scope.value"
                     v-bind="{
-                      ...inputProps(col.colEditType, scope),
+                      ...inputProps(col.colEditType, scope, slotProps.rowIndex, col.name),
                       ...numericInputHandlers(col.colEditType, scope)
                     }"
                   />
@@ -57,7 +58,7 @@
                     v-if="col.colEditType === 'dropdown'"
                     v-model="scope.value"
                     :options="col.enumOptions"
-                    v-bind="inputProps(col.colEditType, scope)"
+                    v-bind="inputProps(col.colEditType, scope, slotProps.rowIndex, col.name)"
                     @update:model-value="scope.set"
                   />
                 </q-popup-edit>
@@ -111,7 +112,7 @@
 
 <script setup lang="ts" generic="T extends z.ZodRawShape">
   import z from 'zod';
-  import { computed } from 'vue';
+  import { computed, nextTick, ref } from 'vue';
   import { type QTableColumn, useQuasar } from 'quasar';
 
   type RowModel = z.ZodObject<T>;
@@ -205,6 +206,55 @@
     props.addRow();
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const popupRefs = ref<Record<string, any>>({});
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const setPopupRef = (el: any, rowIndex: number, colName: string) => {
+    if (el) {
+      popupRefs.value[`${rowIndex}_${colName}`] = el;
+    }
+  };
+
+  const moveFocus = (rowIndex: number, currentColName: string, direction: 'next' | 'prev') => {
+    const visibleCols = columns.value;
+    const currentIdx = visibleCols.findIndex((c) => c.name === currentColName);
+    let targetRowIndex = rowIndex;
+    let targetColIndex = currentIdx + (direction === 'next' ? 1 : -1);
+
+    // Safety break to prevent infinite loops
+    let checks = 0;
+    const maxChecks = 1000;
+
+    while (checks < maxChecks) {
+      checks++;
+
+      // Handle wrapping
+      if (targetColIndex >= visibleCols.length) {
+        targetRowIndex++;
+        targetColIndex = 0;
+      } else if (targetColIndex < 0) {
+        targetRowIndex--;
+        targetColIndex = visibleCols.length - 1;
+      }
+
+      // Check existence
+      // We rely on popupRefs to know if a cell is editable and rendered
+      const nextCol = visibleCols[targetColIndex];
+      const refKey = `${targetRowIndex}_${nextCol.name}`;
+
+      if (popupRefs.value[refKey]) {
+        popupRefs.value[refKey].show();
+        return;
+      }
+
+      // Stop if we went too far out of likely bounds (e.g. end of page)
+      if (direction === 'next' && targetRowIndex > rowIndex + 1) return;
+      if (direction === 'prev' && targetRowIndex < rowIndex - 1 && targetRowIndex < 0) return;
+
+      targetColIndex += direction === 'next' ? 1 : -1;
+    }
+  };
+
   const handleSave = (row: Row, colName: RowKey, newValue: string) => {
     // TypeScript can't narrow generic indexed types, so we need to suppress this
     (row as any)[colName] = newValue;
@@ -231,12 +281,28 @@
     step: colEditType === 'integer' ? ('1' as const) : ('any' as const)
   });
 
-  const inputProps = (editType: ColEditType, scope: { value: unknown; set: () => void; cancel: () => void }) => {
+  const inputProps = (
+    editType: ColEditType,
+    scope: { value: unknown; set: () => void; cancel: () => void },
+    rowIndex: number,
+    colName: string
+  ) => {
     return {
       autofocus: true,
       dense: true,
-      onKeyup: (e: KeyboardEvent) => {
-        if (e.key === 'Enter') scope.set();
+      onKeydown: (e: KeyboardEvent) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          scope.set();
+        }
+        if (e.key === 'Tab') {
+          e.preventDefault();
+          scope.set();
+          // Wait for the popup to close and value to settle
+          nextTick(() => {
+            moveFocus(rowIndex, colName, e.shiftKey ? 'prev' : 'next');
+          });
+        }
       }
     };
   };
