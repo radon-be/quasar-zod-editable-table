@@ -1,0 +1,22 @@
+{
+  "name": "@radon/quasar-app-extension-zod-table",
+  "version": "0.0.1",
+  "description": "Editable table that takes the column definitions from a zod schema",
+  "author": "Stefaan Vandevelde",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"No test specified\" && exit 0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:radon-be/quasar-zod-editable-table.git"
+  },
+  "bugs": "https://github.com/radon-be/quasar-zod-editable-table/issues",
+  "homepage": "https://github.com/radon-be/quasar-zod-editable-table/issues",
+  "engines": {
+    "node": ">= 12.2.0",
+    "npm": ">= 5.6.0",
+    "yarn": ">= 1.6.0"
+  }
+}
