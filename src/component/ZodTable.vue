@@ -25,22 +25,24 @@
         <q-td v-for="col in slotProps.cols" :key="col.name" :props="slotProps">
           <!-- Dynamic slot for custom cell rendering: body-cell-[name] -->
           <slot :name="`body-cell-${col.name}`" v-bind="slotProps" :col="col" :row="slotProps.row">
+            <!-- boolean fields -->
             <q-checkbox
               v-if="col.colEditType === 'checkbox'"
               v-model="slotProps.row[col.name]"
-              dense
-              :disable="!col.editable"
               @update:model-value="() => props.updateRow?.(slotProps.row)"
+              v-bind="visualProps(col)"
             />
+            <!-- enum and foreign key fields -->
             <q-select
-              v-else-if="['dynamic-dropdown', 'static-dropdown'].includes(col.colEditType) && col.editable"
+              v-else-if="col.colEditType === 'dynamic-dropdown' || col.colEditType === 'static-dropdown'"
               v-model="slotProps.row[col.name]"
               :options="col.options"
-              v-bind="getDropdownProps(col)"
+              v-bind="visualProps(col)"
               @update:model-value="() => props.updateRow?.(slotProps.row)"
             />
+            <!-- text and number fields -->
             <template v-else>
-              {{ renderNonEdit(slotProps.row[col.name], col) }}
+              {{ slotProps.row[col.name] }}
               <template v-if="col.editable">
                 <q-popup-edit
                   v-model="slotProps.row[col.name]"
@@ -112,13 +114,14 @@
 </template>
 
 <script setup lang="ts" generic="T extends z.ZodRawShape">
-import { useQuasar } from 'quasar'
+import { QTableColumn, useQuasar } from 'quasar'
 import { computed } from 'vue'
 import z from 'zod'
-import type { ColumnOption, ZodTableColumn } from './types'
-import { getDropdownProps, inputProps, numericInputHandlers } from './edit-utils'
+import type { ColumnOption, ZodTableColumnProps } from './types'
+import { inputProps, numericInputHandlers, visualProps } from './edit-utils'
 import { useTableFocus } from './useTableFocus'
 import { getColumnMetadata, type ColEditType } from './zod-utils'
+import { intersects } from 'radashi'
 
 //TODO! navigatie in de tabel kritisch bekijken, is dat te vereenvoudigen ?
 
@@ -144,6 +147,7 @@ const props = withDefaults(
     editable: boolean
     editableColumns?: Array<RowKey>
     hideColumns?: Array<RowKey>
+    rowId: (row: Row) => string | number
     updateRow?: (row: Row) => void
     addRow?: (row?: Row) => void
     deleteRow?: (row: Row) => void
@@ -209,7 +213,7 @@ const handleSave = (row: Row, colName: RowKey, newValue: string) => {
   props.updateRow?.(row)
 }
 
-const columns = computed<ZodTableColumn[]>(() =>
+const columns = computed<(QTableColumn & ZodTableColumnProps)[]>(() =>
   Object.keys(props.rowModel.shape)
     .filter((key) => !(props.hideColumns ?? []).includes(key as RowKey))
     .map((key) => {
@@ -221,9 +225,7 @@ const columns = computed<ZodTableColumn[]>(() =>
 
       // If dynamic or enum, it's a dropdown
       const colEditType: ColEditType = externalOptions ? 'dynamic-dropdown' : meta.colEditType
-
-      const editable =
-        props.editable && (props.editableColumns?.includes(keyCast) || props.editableColumns?.includes('*'))
+      const editable = props.editable && intersects(props.editableColumns ?? [], [keyCast, '*'])
 
       const options = externalOptions?.options ?? meta.options ?? []
       const optionLabel = externalOptions?.optionLabel ?? 'label'
@@ -246,26 +248,6 @@ const columns = computed<ZodTableColumn[]>(() =>
       }
     }),
 )
-const renderNonEdit = (val: unknown, col: ZodTableColumn) => {
-  if (col.colEditType !== 'dynamic-dropdown') {
-    return val
-  }
-
-  const selected = col.options?.find((opt: unknown) => {
-    const optVal =
-      typeof col.optionValue === 'function'
-        ? col.optionValue(opt)
-        : (opt as Record<string, unknown>)[col.optionValue as string]
-    return optVal === val
-  })
-
-  if (selected) {
-    return typeof col.optionLabel === 'function'
-      ? col.optionLabel(selected)
-      : (selected as Record<string, unknown>)[col.optionLabel || 'label']
-  }
-  return val
-}
 </script>
 
 <style scoped></style>

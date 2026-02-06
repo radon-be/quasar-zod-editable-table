@@ -5,14 +5,15 @@ import type { z } from 'zod'
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface ColumnOption<T = any> {
   options: T[]
-  optionLabel?: string | ((opt: T) => string)
-  optionValue?: string | ((opt: T) => any)
+  optionLabel?: string
+  optionValue?: string
 }
 
-export interface ZodTableColumn extends QTableColumn {
+export interface ZodTableColumnProps {
+  editable: boolean
   colEditType: ColEditType
   options?: unknown[]
-  optionLabel?: string | ((opt: unknown) => string)
-  optionValue?: string | ((opt: unknown) => unknown)
+  optionLabel?: string
+  optionValue?: string
   colSchema?: z.ZodType
 }

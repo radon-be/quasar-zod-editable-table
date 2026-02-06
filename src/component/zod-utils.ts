@@ -1,12 +1,6 @@
 import z from 'zod'
 
-export type ColEditType =
-  | 'text'
-  | 'integer'
-  | 'real'
-  | 'static-dropdown'
-  | 'dynamic-dropdown'
-  | 'checkbox'
+export type ColEditType = 'text' | 'integer' | 'real' | 'static-dropdown' | 'dynamic-dropdown' | 'checkbox'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface ColumnMetadata<T = any> {
@@ -18,15 +12,12 @@ export interface ColumnMetadata<T = any> {
 
 export function getColumnMetadata(schema: z.ZodType): ColumnMetadata {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const json = (schema as any).toJSONSchema
-    ? (schema as any).toJSONSchema()
-    : null
+  const json = schema.toJSONSchema()
+
   if (!json) return { colEditType: 'text' }
 
   // Handle nullable/optional types which might appear as arrays (e.g. ["string", "null"])
-  const type = Array.isArray(json.type)
-    ? json.type.find((t: string) => t !== 'null')
-    : json.type
+  const type = Array.isArray(json.type) ? json.type.find((t: string) => t !== 'null') : json.type
 
   if (json.enum) {
     return {

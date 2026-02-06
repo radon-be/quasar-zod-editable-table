@@ -22,6 +22,7 @@
       :update-row="store.updateRow"
       :add-row="store.addRow"
       :delete-row="store.deleteRow"
+      :row-id="(row) => row.id"
       :initial-rows-per-page="10"
       :actions="['add', 'clone', 'delete']"
     />
@@ -34,13 +35,13 @@ import { HealthcareProviderSchema } from './healthcare-provider.schema'
 
 import { useTableExampleStore } from './stores/healthcareProviderStore'
 const colOpts = {
-  docType2: {
+  office: {
     options: [
-      { id: 'A', label: 'dokter' },
-      { id: 'B', label: 'bioloog' },
-      { id: 'C', label: 'dierenarts' },
-      { id: 'D', label: 'apotheekster' },
-      { id: 'E', label: 'verpleegkundige' },
+      { id: 'A', label: 'De Watermolen', address: 'Geneeskundestraat 13, 1000 Brussel' },
+      { id: 'B', label: 'Het Botte Mes', address: 'Slachthuisstraat 12, 8500 Kortrijk' },
+      { id: 'C', label: 'De Chirugrijn', address: 'Ziekenhuisweg 36, 8560 Marke' },
+      { id: 'D', label: 'Het Labo', address: 'Pres. Kennedypark 2, 8500 Kortrijk' },
+      { id: 'E', label: 'Bij De Beste Dokter', address: 'Dokterstraat 1, 9000 Gent' },
     ],
     optionLabel: 'label',
     optionValue: 'id',

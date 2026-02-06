@@ -1,5 +1,5 @@
 import { nextTick } from 'vue'
-import type { ZodTableColumn } from './types'
+import type { ZodTableColumnProps } from './types'
 
 export const parseNumericValue = (colEditType: string, value: string | number | null) => {
   const parser = colEditType === 'integer' ? parseInt : parseFloat
@@ -21,22 +21,24 @@ export const numericInputHandlers = (
   step: colEditType === 'integer' ? ('1' as const) : ('any' as const),
 })
 
-export const getDropdownProps = (col: ZodTableColumn) => {
-  const common = {
-    dense: true,
-    optionsDense: true,
-    borderless: true,
+export function visualProps(col: ZodTableColumnProps): Record<string, boolean | string> {
+  const keys = ['dense', 'optionsDense', 'borderless', 'disable']
+  const matrix: Record<string, boolean[]> = {
+    checkbox: [true, false, false, !col.editable],
+    'dynamic-dropdown': [true, true, true, !col.editable],
+    'static-dropdown': [true, true, true, !col.editable],
   }
+  const base = Object.fromEntries(keys.map((key, i) => [key, matrix[col.colEditType][i]]))
   if (col.colEditType === 'dynamic-dropdown') {
     return {
-      ...common,
-      'option-label': col.optionLabel,
-      'option-value': col.optionValue,
+      ...base,
+      'option-label': col.optionLabel!,
+      'option-value': col.optionValue!,
       'emit-value': true,
       'map-options': true,
     }
   }
-  return common
+  return base
 }
 
 export const inputProps = (
