@@ -16,7 +16,7 @@
         firstName: 'Voornaam',
         name: 'Familienaam',
         address: 'Adres',
-        docType: 'Soort'
+        docType: 'Soort',
       }"
       :column-options="colOpts"
       :update-row="store.updateRow"
@@ -29,23 +29,23 @@
 </template>
 
 <script setup lang="ts">
-  import EditableTable from '../../src/component/ZodTable.vue';
-  import { HealthcareProviderSchema } from './healthcare-provider.schema';
+import EditableTable from '../../src/component/ZodTable.vue'
+import { HealthcareProviderSchema } from './healthcare-provider.schema'
 
-  import { useTableExampleStore } from './stores/healthcareProviderStore';
-  const colOpts = {
-    docType: {
-      options: [
-        { id: 'A', label: 'dokter' },
-        { id: 'B', label: 'bioloog' },
-        { id: 'C', label: 'dierenarts' },
-        { id: 'D', label: 'apotheekster' },
-        { id: 'E', label: 'verpleegkundige' }
-      ],
-      optionLabel: 'label',
-      optionValue: 'id'
-    }
-  };
-  const store = useTableExampleStore();
-  // test
+import { useTableExampleStore } from './stores/healthcareProviderStore'
+const colOpts = {
+  docType2: {
+    options: [
+      { id: 'A', label: 'dokter' },
+      { id: 'B', label: 'bioloog' },
+      { id: 'C', label: 'dierenarts' },
+      { id: 'D', label: 'apotheekster' },
+      { id: 'E', label: 'verpleegkundige' },
+    ],
+    optionLabel: 'label',
+    optionValue: 'id',
+  },
+}
+const store = useTableExampleStore()
+// test
 </script>

@@ -44,6 +44,7 @@
               <template v-if="col.editable">
                 <q-popup-edit
                   v-model="slotProps.row[col.name]"
+                  auto-save
                   v-slot="scope"
                   :ref="(el: any) => setPopupRef(el, slotProps.rowIndex, col.name)"
                   @save="(newValue: any) => handleSave(slotProps.row, col.name, newValue)"
@@ -51,13 +52,13 @@
                   <q-input
                     v-if="col.colEditType === 'text'"
                     v-model="scope.value"
-                    v-bind="inputProps(scope, slotProps.rowIndex, col.name)"
+                    v-bind="inputProps(scope, slotProps.rowIndex, col.name, focusMove, columns)"
                   />
                   <q-input
                     v-if="['integer', 'real'].includes(col.colEditType)"
                     v-model.number="scope.value"
                     v-bind="{
-                      ...inputProps(scope, slotProps.rowIndex, col.name),
+                      ...inputProps(scope, slotProps.rowIndex, col.name, focusMove, columns),
                       ...numericInputHandlers(col.colEditType, scope),
                     }"
                   />
@@ -111,27 +112,21 @@
 </template>
 
 <script setup lang="ts" generic="T extends z.ZodRawShape">
-import { useQuasar, type QTableColumn } from 'quasar'
-import { computed, nextTick } from 'vue'
+import { useQuasar } from 'quasar'
+import { computed } from 'vue'
 import z from 'zod'
-import type { ColumnOption } from './types'
+import type { ColumnOption, ZodTableColumn } from './types'
+import { getDropdownProps, inputProps, numericInputHandlers } from './edit-utils'
 import { useTableFocus } from './useTableFocus'
 import { getColumnMetadata, type ColEditType } from './zod-utils'
 
-//TODO! dropdowns altijd tonen, ook in niet-edit modus
 //TODO! navigatie in de tabel kritisch bekijken, is dat te vereenvoudigen ?
-
-interface ZodTableColumn extends QTableColumn {
-  colEditType: ColEditType
-  options?: unknown[]
-  optionLabel?: string | ((opt: unknown) => string)
-  optionValue?: string | ((opt: unknown) => unknown)
-  colSchema?: z.ZodType
-}
 
 type RowModel = z.ZodObject<T>
 type Row = z.infer<RowModel>
 type RowKey = keyof Row | '*'
+
+const $q = useQuasar()
 
 defineOptions({
   inheritAttrs: false,
@@ -184,8 +179,6 @@ const getPaginationRange = (page: number, rowsPerPage: number) => {
 
 const getColumnLabel = (key: string) => (props.columnLabels as Record<string, string> | undefined)?.[key]
 
-const $q = useQuasar()
-
 const { popupRefs, setPopupRef, moveFocus: focusMove } = useTableFocus()
 
 const confirmDelete = (row: Row) => {
@@ -214,66 +207,6 @@ const handleSave = (row: Row, colName: RowKey, newValue: string) => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ;(row as any)[key] = newValue
   props.updateRow?.(row)
-}
-
-const parseNumericValue = (colEditType: string, value: string | number | null) => {
-  const parser = colEditType === 'integer' ? parseInt : parseFloat
-  return value ? parser(value.toString()) : 0
-}
-
-const numericInputHandlers = (colEditType: string, scope: { value: unknown; set: () => void; cancel: () => void }) => ({
-  'onUpdate:modelValue': (val: string | number | null) => {
-    scope.value = parseNumericValue(colEditType, val)
-  },
-  onBlur: (e: Event) => {
-    scope.value = parseNumericValue(colEditType, (e.target as HTMLInputElement).value)
-  },
-  type: 'number' as const,
-  'input-class': 'no-spinners',
-  step: colEditType === 'integer' ? ('1' as const) : ('any' as const),
-})
-
-const getDropdownProps = (col: ZodTableColumn) => {
-  const common = {
-    dense: true,
-    optionsDense: true,
-    borderless: true,
-  }
-  if (col.colEditType === 'dynamic-dropdown') {
-    return {
-      ...common,
-      'option-label': col.optionLabel,
-      'option-value': col.optionValue,
-      'emit-value': true,
-      'map-options': true,
-    }
-  }
-  return common
-}
-
-const inputProps = (
-  scope: { value: unknown; set: () => void; cancel: () => void },
-  rowIndex: number,
-  colName: string,
-) => {
-  return {
-    autofocus: true,
-    dense: true,
-    onKeydown: (e: KeyboardEvent) => {
-      if (e.key === 'Enter') {
-        e.preventDefault()
-        scope.set()
-      }
-      if (e.key === 'Tab') {
-        e.preventDefault()
-        scope.set()
-        // Wait for the popup to close and value to settle
-        nextTick(() => {
-          focusMove(rowIndex, colName, e.shiftKey ? 'prev' : 'next', columns.value)
-        })
-      }
-    },
-  }
 }
 
 const columns = computed<ZodTableColumn[]>(() =>

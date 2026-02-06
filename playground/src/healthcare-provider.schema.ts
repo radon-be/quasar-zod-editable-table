@@ -10,14 +10,13 @@ export const HealthcareProviderSchema = z.object({
   name: z.string().min(3).default('Familienaam'),
   address: z.string().min(1).default('Geneeskundestraat 1, 1000 Brussel'),
   docType: DocType.default('dokter'),
+  docType2: DocType.default('dokter'),
   requestCounter: z.int().default(0),
   active: z.boolean().default(false),
 })
 
 export type HealthcareProvider = z.infer<typeof HealthcareProviderSchema>
 
-export function createHealthcareProvider(
-  override: Partial<HealthcareProvider> = {},
-): HealthcareProvider {
+export function createHealthcareProvider(override: Partial<HealthcareProvider> = {}): HealthcareProvider {
   return HealthcareProviderSchema.parse(override)
 }
