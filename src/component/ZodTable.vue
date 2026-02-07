@@ -115,17 +115,22 @@
 
 <script setup lang="ts" generic="T extends z.ZodRawShape">
 import { QTableColumn, useQuasar } from 'quasar'
+import { capitalize, intersects } from 'radashi'
 import { computed } from 'vue'
 import z from 'zod'
-import type { ColumnOption, ZodTableColumnProps } from './types'
-import { inputProps, numericInputHandlers, visualProps } from './edit-utils'
+import {
+  getColumnMetadata,
+  inputProps,
+  numericInputHandlers,
+  visualProps,
+  ZodTableColumnProps,
+  type ColEditType,
+} from './edit-utils'
 import { useTableFocus } from './useTableFocus'
-import { getColumnMetadata, type ColEditType } from './zod-utils'
-import { intersects } from 'radashi'
 
 //TODO! navigatie in de tabel kritisch bekijken, is dat te vereenvoudigen ?
 
-type RowModel = z.ZodObject<T>
+type RowModel = z.ZodObject
 type Row = z.infer<RowModel>
 type RowKey = keyof Row | '*'
 
@@ -138,9 +143,9 @@ defineOptions({
 const props = withDefaults(
   defineProps<{
     columnLabels?: Partial<Record<RowKey, string>>
-    columnOptions?: Partial<Record<RowKey, ColumnOption>>
+    columnOptions?: Partial<Record<RowKey, ZodTableColumnProps>>
     rowKey: string
-    rowModel: RowModel
+    rowModel: z.ZodObject
     data?: Row[]
     headerClass?: string
     headerStyle?: string
@@ -164,12 +169,10 @@ const props = withDefaults(
   },
 )
 
-const capitalize = (str: string) => str.charAt(0).toUpperCase() + str.slice(1)
 type Action = 'add' | 'clone' | 'delete'
 
 const totalRows = computed(() => props.data?.length || 0)
 const rowsPerPageOptions = [3, 5, 7, 10, 15, 20, 25, 50]
-
 const hasActions = computed(() => props.actions && props.actions.length > 0)
 const canAdd = computed(() => props.actions?.includes('add') && props.addRow)
 const canClone = computed(() => props.actions?.includes('clone') && props.addRow)

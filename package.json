@@ -46,6 +46,7 @@
     "app-extension"
   ],
   "dependencies": {
+    "radashi": "^12.3.0",
     "zod": "^4.3.6"
   },
   "peerDependencies": {

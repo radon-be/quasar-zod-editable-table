@@ -1,10 +1,46 @@
 import { nextTick } from 'vue'
-import type { ZodTableColumnProps } from './types'
+import { z } from 'zod'
 
-export const parseNumericValue = (colEditType: string, value: string | number | null) => {
-  const parser = colEditType === 'integer' ? parseInt : parseFloat
-  return value ? parser(value.toString()) : 0
+export type ColEditType = 'text' | 'integer' | 'real' | 'static-dropdown' | 'dynamic-dropdown' | 'checkbox'
+
+export interface ZodTableColumnProps<T = any> {
+  // editable: boolean
+  colEditType: ColEditType
+  options?: T[]
+  optionLabel?: string
+  optionValue?: string
+  colSchema?: z.ZodType
 }
+
+export function getColumnInfo(rowModel: z.ZodObject, columnKey: string) {
+  type RowModel = z.infer<typeof rowModel>
+}
+
+export function getColumnMetadata(schema: z.ZodType): ZodTableColumnProps {
+  const json = schema.toJSONSchema()
+  if (!json) return { colEditType: 'text' } // default / unknown
+
+  // Handle nullable/optional types which might appear as arrays (e.g. ["string", "null"])
+  const type = Array.isArray(json.type) ? json.type.find((t: string) => t !== 'null') : json.type
+
+  if (json.enum) return { colEditType: 'static-dropdown', options: json.enum }
+
+  switch (type) {
+    case 'string':
+      return { colEditType: 'text' }
+    case 'boolean':
+      return { colEditType: 'checkbox' }
+    case 'integer':
+      return { colEditType: 'integer' }
+    case 'number':
+      return { colEditType: 'real' }
+    default:
+      return { colEditType: 'text' }
+  }
+}
+
+export const parseNumericValue = (colEditType: string, value: string | number | null) =>
+  value ? (colEditType === 'integer' ? parseInt : parseFloat)(value.toString()) : 0
 
 export const numericInputHandlers = (
   colEditType: string,
