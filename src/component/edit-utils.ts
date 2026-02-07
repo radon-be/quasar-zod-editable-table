@@ -1,7 +1,7 @@
 import { nextTick } from 'vue'
 import { z } from 'zod'
 
-export type ColEditType = 'text' | 'integer' | 'real' | 'static-dropdown' | 'dynamic-dropdown' | 'checkbox'
+export type ColEditType = 'string' | 'integer' | 'real' | 'static-enum' | 'foreign-key' | 'boolean'
 
 export interface ZodTableColumnProps<T = any> {
   // editable: boolean
@@ -12,31 +12,22 @@ export interface ZodTableColumnProps<T = any> {
   colSchema?: z.ZodType
 }
 
-export function getColumnInfo(rowModel: z.ZodObject, columnKey: string) {
-  type RowModel = z.infer<typeof rowModel>
-}
-
-export function getColumnMetadata(schema: z.ZodType): ZodTableColumnProps {
-  const json = schema.toJSONSchema()
-  if (!json) return { colEditType: 'text' } // default / unknown
-
-  // Handle nullable/optional types which might appear as arrays (e.g. ["string", "null"])
-  const type = Array.isArray(json.type) ? json.type.find((t: string) => t !== 'null') : json.type
-
-  if (json.enum) return { colEditType: 'static-dropdown', options: json.enum }
-
-  switch (type) {
-    case 'string':
-      return { colEditType: 'text' }
-    case 'boolean':
-      return { colEditType: 'checkbox' }
-    case 'integer':
-      return { colEditType: 'integer' }
-    case 'number':
-      return { colEditType: 'real' }
-    default:
-      return { colEditType: 'text' }
-  }
+export function getColumnInfo(
+  colSchema: z.ZodType,
+  key: string,
+  columnOptions: ZodTableColumnProps | undefined,
+): ZodTableColumnProps {
+  const json = colSchema.toJSONSchema()
+  const colEditType: ColEditType = !!columnOptions
+    ? 'foreign-key'
+    : json.enum
+      ? 'static-enum'
+      : Array.isArray(json?.type)
+        ? json.type.find((t: string) => t !== 'null')
+        : json?.type
+  if (colEditType === 'foreign-key') return { colEditType, ...columnOptions }
+  if (colEditType === 'static-enum') return { colEditType, options: json.enum }
+  return { colEditType, options: [] }
 }
 
 export const parseNumericValue = (colEditType: string, value: string | number | null) =>
@@ -58,23 +49,13 @@ export const numericInputHandlers = (
 })
 
 export function visualProps(col: ZodTableColumnProps): Record<string, boolean | string> {
-  const keys = ['dense', 'optionsDense', 'borderless', 'disable']
+  const keys = ['dense', 'optionsDense', 'borderless', 'emit-value', 'map-options']
   const matrix: Record<string, boolean[]> = {
-    checkbox: [true, false, false, !col.editable],
-    'dynamic-dropdown': [true, true, true, !col.editable],
-    'static-dropdown': [true, true, true, !col.editable],
+    boolean: [true, false, false, false, false],
+    'foreign-key': [true, true, true, true, true],
+    'static-enum': [true, true, true, false, false],
   }
-  const base = Object.fromEntries(keys.map((key, i) => [key, matrix[col.colEditType][i]]))
-  if (col.colEditType === 'dynamic-dropdown') {
-    return {
-      ...base,
-      'option-label': col.optionLabel!,
-      'option-value': col.optionValue!,
-      'emit-value': true,
-      'map-options': true,
-    }
-  }
-  return base
+  return Object.fromEntries(keys.map((key, i) => [key, matrix[col.colEditType][i]]))
 }
 
 export const inputProps = (

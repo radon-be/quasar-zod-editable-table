@@ -25,22 +25,23 @@
         <q-td v-for="col in slotProps.cols" :key="col.name" :props="slotProps">
           <!-- Dynamic slot for custom cell rendering: body-cell-[name] -->
           <slot :name="`body-cell-${col.name}`" v-bind="slotProps" :col="col" :row="slotProps.row">
-            <!-- boolean fields -->
             <q-checkbox
-              v-if="col.colEditType === 'checkbox'"
+              v-if="col.colEditType === 'boolean'"
               v-model="slotProps.row[col.name]"
               @update:model-value="() => props.updateRow?.(slotProps.row)"
               v-bind="visualProps(col)"
+              :disable="!col.editable"
             />
-            <!-- enum and foreign key fields -->
+
             <q-select
-              v-else-if="col.colEditType === 'dynamic-dropdown' || col.colEditType === 'static-dropdown'"
+              v-else-if="['foreign-key', 'static-enum'].includes(col.colEditType)"
               v-model="slotProps.row[col.name]"
               :options="col.options"
               v-bind="visualProps(col)"
               @update:model-value="() => props.updateRow?.(slotProps.row)"
+              :disable="!col.editable"
             />
-            <!-- text and number fields -->
+
             <template v-else>
               {{ slotProps.row[col.name] }}
               <template v-if="col.editable">
@@ -52,9 +53,10 @@
                   @save="(newValue: any) => handleSave(slotProps.row, col.name, newValue)"
                 >
                   <q-input
-                    v-if="col.colEditType === 'text'"
+                    v-if="col.colEditType === 'string'"
                     v-model="scope.value"
                     v-bind="inputProps(scope, slotProps.rowIndex, col.name, focusMove, columns)"
+                    :disable="!col.editable"
                   />
                   <q-input
                     v-if="['integer', 'real'].includes(col.colEditType)"
@@ -63,6 +65,7 @@
                       ...inputProps(scope, slotProps.rowIndex, col.name, focusMove, columns),
                       ...numericInputHandlers(col.colEditType, scope),
                     }"
+                    :disable="!col.editable"
                   />
                 </q-popup-edit>
               </template>
@@ -118,21 +121,10 @@ import { QTableColumn, useQuasar } from 'quasar'
 import { capitalize, intersects } from 'radashi'
 import { computed } from 'vue'
 import z from 'zod'
-import {
-  getColumnMetadata,
-  inputProps,
-  numericInputHandlers,
-  visualProps,
-  ZodTableColumnProps,
-  type ColEditType,
-} from './edit-utils'
+import { getColumnInfo, inputProps, numericInputHandlers, visualProps, ZodTableColumnProps } from './edit-utils'
 import { useTableFocus } from './useTableFocus'
 
 //TODO! navigatie in de tabel kritisch bekijken, is dat te vereenvoudigen ?
-
-type RowModel = z.ZodObject
-type Row = z.infer<RowModel>
-type RowKey = keyof Row | '*'
 
 const $q = useQuasar()
 
@@ -140,18 +132,21 @@ defineOptions({
   inheritAttrs: false,
 })
 
+type Row = z.infer<z.ZodObject<T>>
+type ColumnKey = Extract<keyof Row, string>
+
 const props = withDefaults(
   defineProps<{
-    columnLabels?: Partial<Record<RowKey, string>>
-    columnOptions?: Partial<Record<RowKey, ZodTableColumnProps>>
-    rowKey: string
-    rowModel: z.ZodObject
-    data?: Row[]
+    rowModel: z.ZodObject<T>
+    columnLabels?: Partial<Record<ColumnKey, string>>
+    columnOptions?: Partial<Record<ColumnKey, ZodTableColumnProps>>
+    rowKey: ColumnKey
+    data: Row[]
     headerClass?: string
     headerStyle?: string
     editable: boolean
-    editableColumns?: Array<RowKey>
-    hideColumns?: Array<RowKey>
+    editableColumns?: Array<ColumnKey>
+    hideColumns?: Array<ColumnKey>
     rowId: (row: Row) => string | number
     updateRow?: (row: Row) => void
     addRow?: (row?: Row) => void
@@ -160,8 +155,6 @@ const props = withDefaults(
     actions?: Action[]
   }>(),
   {
-    rowModel: () => z.object({}) as RowModel,
-    data: () => [],
     headerClass: '',
     headerStyle: '',
     initialRowsPerPage: 5,
@@ -209,7 +202,7 @@ const addNewRow = () => {
   props.addRow()
 }
 
-const handleSave = (row: Row, colName: RowKey, newValue: string) => {
+const handleSave = (row: Row, colName: ColumnKey, newValue: string) => {
   const key = colName as keyof Row
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ;(row as any)[key] = newValue
@@ -218,22 +211,11 @@ const handleSave = (row: Row, colName: RowKey, newValue: string) => {
 
 const columns = computed<(QTableColumn & ZodTableColumnProps)[]>(() =>
   Object.keys(props.rowModel.shape)
-    .filter((key) => !(props.hideColumns ?? []).includes(key as RowKey))
+    .filter((key) => !(props.hideColumns ?? []).includes(key as ColumnKey))
     .map((key) => {
-      const keyCast = key as RowKey
+      const keyCast = key as ColumnKey
       const colSchema = props.rowModel.shape[key] as z.ZodType
-      const meta = getColumnMetadata(colSchema)
-
-      const externalOptions = props.columnOptions?.[keyCast]
-
-      // If dynamic or enum, it's a dropdown
-      const colEditType: ColEditType = externalOptions ? 'dynamic-dropdown' : meta.colEditType
-      const editable = props.editable && intersects(props.editableColumns ?? [], [keyCast, '*'])
-
-      const options = externalOptions?.options ?? meta.options ?? []
-      const optionLabel = externalOptions?.optionLabel ?? 'label'
-      const optionValue = externalOptions?.optionValue ?? 'value'
-
+      const meta = getColumnInfo(colSchema, key, props.columnOptions?.[keyCast])
       return {
         name: key,
         label: getColumnLabel(key) ?? capitalize(key),
@@ -242,11 +224,8 @@ const columns = computed<(QTableColumn & ZodTableColumnProps)[]>(() =>
         sortable: true,
         headerClasses: props.headerClass,
         headerStyle: props.headerStyle,
-        colEditType,
-        editable,
-        options,
-        optionLabel,
-        optionValue,
+        ...meta,
+        editable: props.editable && intersects(props.editableColumns ?? [], [keyCast, '*']),
         colSchema,
       }
     }),
