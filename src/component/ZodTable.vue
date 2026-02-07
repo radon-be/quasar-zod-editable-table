@@ -49,23 +49,19 @@
                   v-model="slotProps.row[col.name]"
                   auto-save
                   v-slot="scope"
-                  :ref="(el: any) => setPopupRef(el, slotProps.rowIndex, col.name)"
                   @save="(newValue: any) => handleSave(slotProps.row, col.name, newValue)"
                 >
                   <q-input
                     v-if="col.colEditType === 'string'"
                     v-model="scope.value"
-                    v-bind="inputProps(scope, slotProps.rowIndex, col.name, focusMove, columns)"
-                    :disable="!col.editable"
+                    v-bind="visualProps(col)"
+                    @keydown="onPopupKeydown($event, scope)"
                   />
                   <q-input
                     v-if="['integer', 'real'].includes(col.colEditType)"
                     v-model.number="scope.value"
-                    v-bind="{
-                      ...inputProps(scope, slotProps.rowIndex, col.name, focusMove, columns),
-                      ...numericInputHandlers(col.colEditType, scope),
-                    }"
-                    :disable="!col.editable"
+                    v-bind="{ ...numericProps(col.colEditType, scope), ...visualProps(col) }"
+                    @keydown="onPopupKeydown($event, scope)"
                   />
                 </q-popup-edit>
               </template>
@@ -121,8 +117,7 @@ import { QTableColumn, useQuasar } from 'quasar'
 import { capitalize, intersects } from 'radashi'
 import { computed } from 'vue'
 import z from 'zod'
-import { getColumnInfo, inputProps, numericInputHandlers, visualProps, ZodTableColumnProps } from './edit-utils'
-import { useTableFocus } from './useTableFocus'
+import { getColumnInfo, numericProps, visualProps, ZodTableColumnProps } from './edit-utils'
 
 //TODO! navigatie in de tabel kritisch bekijken, is dat te vereenvoudigen ?
 
@@ -179,7 +174,12 @@ const getPaginationRange = (page: number, rowsPerPage: number) => {
 
 const getColumnLabel = (key: string) => (props.columnLabels as Record<string, string> | undefined)?.[key]
 
-const { popupRefs, setPopupRef, moveFocus: focusMove } = useTableFocus()
+const onPopupKeydown = (e: KeyboardEvent, scope: { set: () => void }) => {
+  if (e.key === 'Enter') {
+    e.preventDefault()
+    scope.set()
+  }
+}
 
 const confirmDelete = (row: Row) => {
   $q.dialog({
