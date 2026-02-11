@@ -24,25 +24,38 @@
       <q-tr :props="slotProps">
         <q-td v-for="col in slotProps.cols" :key="col.name" :props="slotProps">
           <!-- Dynamic slot for custom cell rendering: body-cell-[name] -->
+          <!-- boolean and dropdown columns don't use popup edit -->
           <slot :name="`body-cell-${col.name}`" v-bind="slotProps" :col="col" :row="slotProps.row">
             <q-checkbox
               v-if="col.colEditType === 'boolean'"
               v-model="slotProps.row[col.name]"
               @update:model-value="() => props.updateRow?.(slotProps.row)"
               v-bind="visualProps(col)"
-              :disable="!col.editable"
+              :disable="!props.editable || !col.editable"
             />
 
             <q-select
-              v-else-if="['foreign-key', 'static-enum'].includes(col.colEditType)"
+              v-else-if="col.colEditType === 'static-enum'"
               v-model="slotProps.row[col.name]"
               :options="col.options"
               v-bind="visualProps(col)"
               @update:model-value="() => props.updateRow?.(slotProps.row)"
-              :disable="!col.editable"
+              :disable="!props.editable || !col.editable"
+            />
+
+            <q-select
+              v-else-if="'foreign-key' === col.colEditType"
+              v-model="slotProps.row[col.name]"
+              :options="col.options"
+              v-bind="visualProps(col)"
+              @update:model-value="() => props.updateRow?.(slotProps.row)"
+              :disable="!props.editable || !col.editable"
+              :option-value="col.optionValue"
+              :option-label="col.optionLabel"
             />
 
             <template v-else>
+              <!-- any other column types (that use popup edit) -->
               {{ slotProps.row[col.name] }}
               <template v-if="col.editable">
                 <q-popup-edit
@@ -91,9 +104,7 @@
           <q-select
             :model-value="scope.pagination.rowsPerPage"
             :options="rowsPerPageOptions"
-            dense
-            options-dense
-            borderless
+            v-bind="visualProps('rowsPerPage')"
             @update:model-value="(val: any) => (scope.pagination.rowsPerPage = val)"
           />
           <span class="q-ml-md">
@@ -134,15 +145,14 @@ const props = withDefaults(
   defineProps<{
     rowModel: z.ZodObject<T>
     columnLabels?: Partial<Record<ColumnKey, string>>
-    columnOptions?: Partial<Record<ColumnKey, ZodTableColumnProps>>
+    extraColumnOptions?: Partial<Record<ColumnKey, ZodTableColumnProps>>
     rowKey: ColumnKey
     data: Row[]
     headerClass?: string
     headerStyle?: string
     editable: boolean
-    editableColumns?: Array<ColumnKey>
+    editableColumns?: Array<ColumnKey | '*'>
     hideColumns?: Array<ColumnKey>
-    rowId: (row: Row) => string | number
     updateRow?: (row: Row) => void
     addRow?: (row?: Row) => void
     deleteRow?: (row: Row) => void
@@ -193,13 +203,11 @@ const confirmDelete = (row: Row) => {
 }
 
 const cloneRow = (row: Row) => {
-  const clonedRow = { ...row }
-  props.addRow?.(clonedRow)
+  props.addRow?.(row)
 }
 
 const addNewRow = () => {
-  if (!props.addRow) return
-  props.addRow()
+  props.addRow?.()
 }
 
 const handleSave = (row: Row, colName: ColumnKey, newValue: string) => {
@@ -215,7 +223,7 @@ const columns = computed<(QTableColumn & ZodTableColumnProps)[]>(() =>
     .map((key) => {
       const keyCast = key as ColumnKey
       const colSchema = props.rowModel.shape[key] as z.ZodType
-      const meta = getColumnInfo(colSchema, key, props.columnOptions?.[keyCast])
+      const meta = getColumnInfo(colSchema, key, props.extraColumnOptions?.[keyCast])
       return {
         name: key,
         label: getColumnLabel(key) ?? capitalize(key),

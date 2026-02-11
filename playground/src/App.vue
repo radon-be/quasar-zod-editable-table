@@ -18,11 +18,10 @@
         address: 'Adres',
         docType: 'Soort',
       }"
-      :column-options="colOpts"
+      :extraColumnOptions="colOpts"
       :update-row="store.updateRow"
       :add-row="store.addRow"
       :delete-row="store.deleteRow"
-      :row-id="(row) => row.id"
       :initial-rows-per-page="10"
       :actions="['add', 'clone', 'delete']"
     />
@@ -30,12 +29,14 @@
 </template>
 
 <script setup lang="ts">
+import { max } from 'radashi'
 import EditableTable from '../../src/component/ZodTable.vue'
 import { HealthcareProviderSchema } from './healthcare-provider.schema'
-
 import { useTableExampleStore } from './stores/healthcareProviderStore'
+
 const colOpts = {
   office: {
+    colEditType: 'foreign-key',
     options: [
       { id: 'A', label: 'De Watermolen', address: 'Geneeskundestraat 13, 1000 Brussel' },
       { id: 'B', label: 'Het Botte Mes', address: 'Slachthuisstraat 12, 8500 Kortrijk' },
@@ -48,5 +49,9 @@ const colOpts = {
   },
 }
 const store = useTableExampleStore()
+function nextRowId() {
+  const maxId = max(store.data.map((row) => row.id)) ?? 0
+  return maxId + 2
+}
 // test
 </script>

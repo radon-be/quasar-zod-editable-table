@@ -1,10 +1,11 @@
+import { isString } from 'radashi'
 import { z } from 'zod'
 
 export type ColEditType = 'string' | 'integer' | 'real' | 'static-enum' | 'foreign-key' | 'boolean'
 
 export interface ZodTableColumnProps<T = any> {
   // editable: boolean
-  colEditType: ColEditType
+  colEditType: string
   options?: T[]
   optionLabel?: string
   optionValue?: string
@@ -44,7 +45,7 @@ export const numericProps = (colEditType: string, scope: { value: unknown; set: 
   step: colEditType === 'integer' ? ('1' as const) : ('any' as const),
 })
 
-export function visualProps(col: ZodTableColumnProps): Record<string, boolean | string> {
+export function visualProps(col: ZodTableColumnProps | 'rowsPerPage'): Record<string, boolean | string> {
   const keys = ['dense', 'optionsDense', 'borderless', 'emit-value', 'map-options', 'autoFocus']
   const matrix: Record<string, boolean[]> = {
     boolean: [true, false, false, false, false, false],
@@ -53,6 +54,8 @@ export function visualProps(col: ZodTableColumnProps): Record<string, boolean | 
     string: [true, false, false, false, false, true],
     integer: [true, false, false, false, false, true],
     real: [true, false, false, false, false, true],
+    rowsPerPage: [true, true, true, false, false, false],
   }
-  return Object.fromEntries(keys.map((key, i) => [key, matrix[col.colEditType][i]]))
+  const selector = isString(col) ? col : col.colEditType
+  return Object.fromEntries(keys.map((key, i) => [key, matrix[selector][i]]))
 }
