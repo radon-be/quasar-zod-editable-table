@@ -1,6 +1,6 @@
 {
   "name": "@radon-be/quasar-app-extension-zod-table",
-  "version": "0.0.3",
+  "version": "0.1.0",
   "description": "Editable table that takes the column definitions from a zod schema",
   "author": "Stefaan Vandevelde",
   "license": "MIT",

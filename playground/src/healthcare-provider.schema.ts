@@ -10,7 +10,7 @@ export const HealthcareProviderSchema = z.object({
   name: z.string().min(3).default('Familienaam'),
   address: z.string().min(1).default('Geneeskundestraat 1, 1000 Brussel'),
   docType: DocType.default('dokter'),
-  office: z.string(),
+  office: z.string().default('A'),
   requestCounter: z.int().default(0),
   active: z.boolean().default(false),
 })

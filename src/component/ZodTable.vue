@@ -24,45 +24,57 @@
       <q-tr :props="slotProps">
         <q-td v-for="col in slotProps.cols" :key="col.name" :props="slotProps">
           <!-- Dynamic slot for custom cell rendering: body-cell-[name] -->
+          <!-- boolean and dropdown columns don't use popup edit -->
           <slot :name="`body-cell-${col.name}`" v-bind="slotProps" :col="col" :row="slotProps.row">
-            <!-- boolean fields -->
             <q-checkbox
-              v-if="col.colEditType === 'checkbox'"
+              v-if="col.colEditType === 'boolean'"
               v-model="slotProps.row[col.name]"
               @update:model-value="() => props.updateRow?.(slotProps.row)"
               v-bind="visualProps(col)"
+              :disable="!props.editable || !col.editable"
             />
-            <!-- enum and foreign key fields -->
+
             <q-select
-              v-else-if="col.colEditType === 'dynamic-dropdown' || col.colEditType === 'static-dropdown'"
+              v-else-if="col.colEditType === 'static-enum'"
               v-model="slotProps.row[col.name]"
               :options="col.options"
               v-bind="visualProps(col)"
               @update:model-value="() => props.updateRow?.(slotProps.row)"
+              :disable="!props.editable || !col.editable"
             />
-            <!-- text and number fields -->
+
+            <q-select
+              v-else-if="'foreign-key' === col.colEditType"
+              v-model="slotProps.row[col.name]"
+              :options="col.options"
+              v-bind="visualProps(col)"
+              @update:model-value="() => props.updateRow?.(slotProps.row)"
+              :disable="!props.editable || !col.editable"
+              :option-value="col.optionValue"
+              :option-label="col.optionLabel"
+            />
+
             <template v-else>
+              <!-- any other column types (that use popup edit) -->
               {{ slotProps.row[col.name] }}
               <template v-if="col.editable">
                 <q-popup-edit
                   v-model="slotProps.row[col.name]"
                   auto-save
                   v-slot="scope"
-                  :ref="(el: any) => setPopupRef(el, slotProps.rowIndex, col.name)"
                   @save="(newValue: any) => handleSave(slotProps.row, col.name, newValue)"
                 >
                   <q-input
-                    v-if="col.colEditType === 'text'"
+                    v-if="col.colEditType === 'string'"
                     v-model="scope.value"
-                    v-bind="inputProps(scope, slotProps.rowIndex, col.name, focusMove, columns)"
+                    v-bind="visualProps(col)"
+                    @keydown="onPopupKeydown($event, scope)"
                   />
                   <q-input
                     v-if="['integer', 'real'].includes(col.colEditType)"
                     v-model.number="scope.value"
-                    v-bind="{
-                      ...inputProps(scope, slotProps.rowIndex, col.name, focusMove, columns),
-                      ...numericInputHandlers(col.colEditType, scope),
-                    }"
+                    v-bind="{ ...numericProps(col.colEditType, scope), ...visualProps(col) }"
+                    @keydown="onPopupKeydown($event, scope)"
                   />
                 </q-popup-edit>
               </template>
@@ -92,9 +104,7 @@
           <q-select
             :model-value="scope.pagination.rowsPerPage"
             :options="rowsPerPageOptions"
-            dense
-            options-dense
-            borderless
+            v-bind="visualProps('rowsPerPage')"
             @update:model-value="(val: any) => (scope.pagination.rowsPerPage = val)"
           />
           <span class="q-ml-md">
@@ -115,19 +125,12 @@
 
 <script setup lang="ts" generic="T extends z.ZodRawShape">
 import { QTableColumn, useQuasar } from 'quasar'
+import { capitalize, intersects } from 'radashi'
 import { computed } from 'vue'
 import z from 'zod'
-import type { ColumnOption, ZodTableColumnProps } from './types'
-import { inputProps, numericInputHandlers, visualProps } from './edit-utils'
-import { useTableFocus } from './useTableFocus'
-import { getColumnMetadata, type ColEditType } from './zod-utils'
-import { intersects } from 'radashi'
+import { getColumnInfo, numericProps, visualProps, ZodTableColumnProps } from './edit-utils'
 
 //TODO! navigatie in de tabel kritisch bekijken, is dat te vereenvoudigen ?
-
-type RowModel = z.ZodObject<T>
-type Row = z.infer<RowModel>
-type RowKey = keyof Row | '*'
 
 const $q = useQuasar()
 
@@ -135,19 +138,21 @@ defineOptions({
   inheritAttrs: false,
 })
 
+type Row = z.infer<z.ZodObject<T>>
+type ColumnKey = Extract<keyof Row, string>
+
 const props = withDefaults(
   defineProps<{
-    columnLabels?: Partial<Record<RowKey, string>>
-    columnOptions?: Partial<Record<RowKey, ColumnOption>>
-    rowKey: string
-    rowModel: RowModel
-    data?: Row[]
+    rowModel: z.ZodObject<T>
+    columnLabels?: Partial<Record<ColumnKey, string>>
+    extraColumnOptions?: Partial<Record<ColumnKey, ZodTableColumnProps>>
+    rowKey: ColumnKey
+    data: Row[]
     headerClass?: string
     headerStyle?: string
     editable: boolean
-    editableColumns?: Array<RowKey>
-    hideColumns?: Array<RowKey>
-    rowId: (row: Row) => string | number
+    editableColumns?: Array<ColumnKey | '*'>
+    hideColumns?: Array<ColumnKey>
     updateRow?: (row: Row) => void
     addRow?: (row?: Row) => void
     deleteRow?: (row: Row) => void
@@ -155,8 +160,6 @@ const props = withDefaults(
     actions?: Action[]
   }>(),
   {
-    rowModel: () => z.object({}) as RowModel,
-    data: () => [],
     headerClass: '',
     headerStyle: '',
     initialRowsPerPage: 5,
@@ -164,12 +167,10 @@ const props = withDefaults(
   },
 )
 
-const capitalize = (str: string) => str.charAt(0).toUpperCase() + str.slice(1)
 type Action = 'add' | 'clone' | 'delete'
 
 const totalRows = computed(() => props.data?.length || 0)
 const rowsPerPageOptions = [3, 5, 7, 10, 15, 20, 25, 50]
-
 const hasActions = computed(() => props.actions && props.actions.length > 0)
 const canAdd = computed(() => props.actions?.includes('add') && props.addRow)
 const canClone = computed(() => props.actions?.includes('clone') && props.addRow)
@@ -183,7 +184,12 @@ const getPaginationRange = (page: number, rowsPerPage: number) => {
 
 const getColumnLabel = (key: string) => (props.columnLabels as Record<string, string> | undefined)?.[key]
 
-const { popupRefs, setPopupRef, moveFocus: focusMove } = useTableFocus()
+const onPopupKeydown = (e: KeyboardEvent, scope: { set: () => void }) => {
+  if (e.key === 'Enter') {
+    e.preventDefault()
+    scope.set()
+  }
+}
 
 const confirmDelete = (row: Row) => {
   $q.dialog({
@@ -197,16 +203,14 @@ const confirmDelete = (row: Row) => {
 }
 
 const cloneRow = (row: Row) => {
-  const clonedRow = { ...row }
-  props.addRow?.(clonedRow)
+  props.addRow?.(row)
 }
 
 const addNewRow = () => {
-  if (!props.addRow) return
-  props.addRow()
+  props.addRow?.()
 }
 
-const handleSave = (row: Row, colName: RowKey, newValue: string) => {
+const handleSave = (row: Row, colName: ColumnKey, newValue: string) => {
   const key = colName as keyof Row
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ;(row as any)[key] = newValue
@@ -215,22 +219,11 @@ const handleSave = (row: Row, colName: RowKey, newValue: string) => {
 
 const columns = computed<(QTableColumn & ZodTableColumnProps)[]>(() =>
   Object.keys(props.rowModel.shape)
-    .filter((key) => !(props.hideColumns ?? []).includes(key as RowKey))
+    .filter((key) => !(props.hideColumns ?? []).includes(key as ColumnKey))
     .map((key) => {
-      const keyCast = key as RowKey
+      const keyCast = key as ColumnKey
       const colSchema = props.rowModel.shape[key] as z.ZodType
-      const meta = getColumnMetadata(colSchema)
-
-      const externalOptions = props.columnOptions?.[keyCast]
-
-      // If dynamic or enum, it's a dropdown
-      const colEditType: ColEditType = externalOptions ? 'dynamic-dropdown' : meta.colEditType
-      const editable = props.editable && intersects(props.editableColumns ?? [], [keyCast, '*'])
-
-      const options = externalOptions?.options ?? meta.options ?? []
-      const optionLabel = externalOptions?.optionLabel ?? 'label'
-      const optionValue = externalOptions?.optionValue ?? 'value'
-
+      const meta = getColumnInfo(colSchema, key, props.extraColumnOptions?.[keyCast])
       return {
         name: key,
         label: getColumnLabel(key) ?? capitalize(key),
@@ -239,11 +232,8 @@ const columns = computed<(QTableColumn & ZodTableColumnProps)[]>(() =>
         sortable: true,
         headerClasses: props.headerClass,
         headerStyle: props.headerStyle,
-        colEditType,
-        editable,
-        options,
-        optionLabel,
-        optionValue,
+        ...meta,
+        editable: props.editable && intersects(props.editableColumns ?? [], [keyCast, '*']),
         colSchema,
       }
     }),
