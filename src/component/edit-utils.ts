@@ -1,15 +1,17 @@
 import { isString } from 'radashi'
 import { z } from 'zod'
 
-export type ColEditType = 'string' | 'integer' | 'real' | 'static-enum' | 'foreign-key' | 'boolean'
+export type ColEditType = 'string' | 'integer' | 'real' | 'static-enum' | 'foreign-key' | 'boolean' | 'date' | 'time'
 
 export interface ZodTableColumnProps<T = any> {
-  // editable: boolean
-  colEditType: string
+  colEditType: ColEditType
   options?: T[]
   optionLabel?: string
   optionValue?: string
   colSchema?: z.ZodType
+  editable?: boolean
+  /** Only when editable */
+  clearable?: boolean
 }
 
 export function getColumnInfo(
@@ -18,13 +20,16 @@ export function getColumnInfo(
   columnOptions: ZodTableColumnProps | undefined,
 ): ZodTableColumnProps {
   const json = colSchema.toJSONSchema()
+
   const colEditType: ColEditType = !!columnOptions
     ? 'foreign-key'
-    : json.enum
-      ? 'static-enum'
-      : Array.isArray(json?.type)
-        ? json.type.find((t: string) => t !== 'null')
-        : json?.type
+    : colSchema instanceof z.ZodDate || json.format === 'date' || json.format === 'date-time'
+      ? 'date'
+      : json.enum
+        ? 'static-enum'
+        : Array.isArray(json?.type)
+          ? json.type.find((t: string) => t !== 'null')
+          : json?.type
   if (colEditType === 'foreign-key') return { colEditType, ...columnOptions }
   if (colEditType === 'static-enum') return { colEditType, options: json.enum }
   return { colEditType, options: [] }

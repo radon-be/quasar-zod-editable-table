@@ -1,18 +1,17 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { createHealthcareProvider, type HealthcareProvider } from '../healthcare-provider.schema'
+import {
+  createHealthcareProvider,
+  type HealthcareProvider,
+  HealthcareProviderSchema,
+} from '../healthcare-provider.schema'
+import z from 'zod'
+import dataJson from './data.json'
 
 export const useTableExampleStore = defineStore('tableExample', () => {
-  const data = ref<HealthcareProvider[]>(
-    [
-      [1, 'Dokter', 'Bibber', 'Marke', 'dokter', 145, true],
-      [2, 'Louis', 'Pasteur', 'Kortrijk', 'bioloog', 0, true],
-      [3, 'Hippocrates', ' ', 'Kortrijk', 'Griek', 10, false],
-    ].map(
-      ([id, firstName, name, address, docType, rqc, active]) =>
-        ({ id, firstName, name, address, docType, office:'A', requestCounter: rqc, active }) as HealthcareProvider, //prettier-ignore
-    ),
-  )
+  const ProvidersSchema = z.array(HealthcareProviderSchema)
+  const dataParsed = ProvidersSchema.parse(dataJson)
+  const data = ref<HealthcareProvider[]>(dataParsed)
 
   function updateRow(updatedRow: HealthcareProvider) {
     console.log('Updating row:', updatedRow.id, '=>', updatedRow)
