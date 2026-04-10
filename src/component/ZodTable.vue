@@ -1,6 +1,6 @@
 <template>
   <q-table
-    :columns="columns"
+    :columns="filteredColumns"
     :rows="props.data"
     :row-key="props.rowKey"
     :rows-per-page-options="rowsPerPageOptions"
@@ -13,7 +13,7 @@
           {{ col.label }}
         </q-th>
         <q-th
-          v-if="hasActions && props.editable"
+          v-if="hasActions && (editable || canGoto)"
           auto-width
           :class="props.headerClass"
           :style="props.headerStyle"
@@ -22,47 +22,131 @@
     </template>
     <template v-slot:body="slotProps">
       <q-tr :props="slotProps">
-        <q-td v-for="col in slotProps.cols" :key="col.name" :props="slotProps">
+        <q-td
+          v-for="col in slotProps.cols as (QTableColumn & ZodTableColumnProps)[]"
+          :key="col.name"
+          :props="slotProps"
+        >
           <!-- Dynamic slot for custom cell rendering: body-cell-[name] -->
-          <!-- boolean and dropdown columns don't use popup edit -->
+          <!-- boolean, dropdown and datepicker columns don't use popup edit -->
           <slot :name="`body-cell-${col.name}`" v-bind="slotProps" :col="col" :row="slotProps.row">
             <q-checkbox
               v-if="col.colEditType === 'boolean'"
-              v-model="slotProps.row[col.name]"
-              @update:model-value="() => props.updateRow?.(slotProps.row)"
+              :model-value="getNestedValue(slotProps.row, col.name)"
+              @update:model-value="
+                (val) => (setNestedValue(slotProps.row, col.name, val), props.updateRow?.(slotProps.row))
+              "
               v-bind="visualProps(col)"
-              :disable="!props.editable || !col.editable"
+              :disable="!col.editable"
             />
+            <template v-else-if="col.colEditType === 'static-enum'">
+              <q-select
+                :model-value="getNestedValue(slotProps.row, col.name)"
+                :options="col.options"
+                v-bind="visualProps(col)"
+                @update:model-value="
+                  (val) => (setNestedValue(slotProps.row, col.name, val), props.updateRow?.(slotProps.row))
+                "
+                :disable="!col.editable"
+                :clearable="
+                  col.name in (extraColumnOptions ?? {}) &&
+                  extraColumnOptions?.[col.name as ColumnKeyType<T>]?.clearable
+                "
+              />
+            </template>
 
-            <q-select
-              v-else-if="col.colEditType === 'static-enum'"
-              v-model="slotProps.row[col.name]"
-              :options="col.options"
-              v-bind="visualProps(col)"
-              @update:model-value="() => props.updateRow?.(slotProps.row)"
-              :disable="!props.editable || !col.editable"
-            />
-
-            <q-select
-              v-else-if="'foreign-key' === col.colEditType"
-              v-model="slotProps.row[col.name]"
-              :options="col.options"
-              v-bind="visualProps(col)"
-              @update:model-value="() => props.updateRow?.(slotProps.row)"
-              :disable="!props.editable || !col.editable"
-              :option-value="col.optionValue"
-              :option-label="col.optionLabel"
-            />
+            <template v-else-if="'foreign-key' === col.colEditType">
+              <q-select
+                :model-value="getNestedValue(slotProps.row, col.name)"
+                :options="col.options"
+                v-bind="visualProps(col)"
+                @update:model-value="
+                  (val) => (setNestedValue(slotProps.row, col.name, val), props.updateRow?.(slotProps.row))
+                "
+                :disable="!col.editable"
+                :option-value="col.optionValue"
+                :option-label="col.optionLabel"
+                :clearable="
+                  col.name in (extraColumnOptions ?? {}) &&
+                  extraColumnOptions?.[col.name as ColumnKeyType<T>]?.clearable
+                "
+              />
+            </template>
 
             <template v-else>
               <!-- any other column types (that use popup edit) -->
-              {{ slotProps.row[col.name] }}
-              <template v-if="col.editable">
+
+              <template v-if="col.colEditType === 'date' || col.colEditType === 'time'">
+                <div class="row justify-between items-center" style="flex-wrap: nowrap">
+                  {{
+                    date.formatDate(
+                      getNestedValue(slotProps.row, col.name),
+                      col.colEditType === 'date' ? 'DD-MM-YYYY' : 'HH:mm',
+                    )
+                  }}
+                  <q-icon
+                    v-if="
+                      editable &&
+                      (col.name in (editableColumns ?? {}) || editableColumns?.includes('*')) &&
+                      col.name in (extraColumnOptions ?? {}) &&
+                      extraColumnOptions?.[col.name as ColumnKeyType<T>]?.clearable &&
+                      typeof getNestedValue(slotProps.row, col.name) !== 'undefined'
+                    "
+                    :name="$q.iconSet.field.clear"
+                    size="sm"
+                    class="cursor-pointer text-grey-6 hover-opacity q-ml-xs"
+                    @click.stop="() => setNestedValue(slotProps.row, col.name, undefined)"
+                  />
+                </div>
+              </template>
+
+              <template v-else>
+                {{ getNestedValue(slotProps.row, col.name) }}
+              </template>
+
+              <template v-if="editable && col.editable">
+                <q-popup-proxy
+                  v-if="col.colEditType === 'date' || col.colEditType === 'time'"
+                  cover
+                  transition-show="scale"
+                  transition-hide="scale"
+                  class="q-popup-proxy-in-table"
+                >
+                  <component
+                    :is="col.colEditType === 'date' ? QDate : QTime"
+                    v-model="dateOrTimeModel(slotProps.row, col.name, col.colEditType, props.updateRow).value"
+                    v-bind="col.colEditType === 'date' ? { firstDayOfWeek: '1' } : { format24h: true }"
+                  >
+                    <div class="row items-center justify-between">
+                      <q-btn
+                        label="Now"
+                        color="primary"
+                        flat
+                        @click="setNestedValue(slotProps.row, col.name, new Date())"
+                      />
+                      <q-btn
+                        v-close-popup
+                        label="Clear"
+                        color="primary"
+                        flat
+                        @click="setNestedValue(slotProps.row, col.name, undefined)"
+                        v-if="typeof getNestedValue(slotProps.row, col.name) !== 'undefined'"
+                      />
+                      <q-btn v-close-popup label="Close" color="primary" flat />
+                    </div>
+                  </component>
+                </q-popup-proxy>
                 <q-popup-edit
-                  v-model="slotProps.row[col.name]"
+                  v-else
+                  :model-value="getNestedValue(slotProps.row, col.name)"
                   auto-save
                   v-slot="scope"
-                  @save="(newValue: any) => handleSave(slotProps.row, col.name, newValue)"
+                  @save="
+                    (newValue: any) => (
+                      setNestedValue(slotProps.row, col.name, newValue),
+                      props.updateRow?.(slotProps.row)
+                    )
+                  "
                 >
                   <q-input
                     v-if="col.colEditType === 'string'"
@@ -81,26 +165,75 @@
             </template>
           </slot>
         </q-td>
-        <q-td v-if="hasActions && props.editable" auto-width>
-          <q-btn v-if="canClone" icon="content_copy" flat dense color="primary" @click="cloneRow(slotProps.row)" />
-          <q-btn v-if="canDelete" icon="delete" flat dense color="negative" @click="confirmDelete(slotProps.row)" />
+        <q-td v-if="hasActions" auto-width>
+          <div class="col q-gutter-xs">
+            <template v-if="canGoto && normalizedGotoRows.length > 0">
+              <q-btn
+                v-for="gotoRow in normalizedGotoRows"
+                :key="gotoRow.key"
+                :icon="gotoRow.icon"
+                size="sm"
+                dense
+                color="primary"
+                @click="gotoRow.handler(slotProps.row)"
+                :title="gotoRow.label"
+              />
+            </template>
+            <q-btn
+              v-if="editable && canClone"
+              icon="content_copy"
+              size="sm"
+              dense
+              color="primary"
+              @click="props.addRow?.(slotProps.row)"
+              title="clone"
+            />
+            <q-btn
+              v-if="editable && canDelete"
+              icon="delete"
+              size="sm"
+              dense
+              color="negative"
+              @click="confirmDelete(slotProps.row)"
+              title="delete"
+            />
+          </div>
         </q-td>
       </q-tr>
     </template>
     <template v-slot:bottom="scope">
       <div class="row items-center full-width">
-        <q-btn
-          v-if="canAdd && props.editable"
-          label="Toevoegen"
-          icon="add"
-          color="primary"
-          flat
-          dense
-          @click="addNewRow"
-        />
+        <div class="row items-center q-gutter-sm">
+          <q-toggle v-if="showEditableToggle" v-model="editable" title="Editable" />
+          <q-btn
+            v-if="canAdd && editable"
+            label="Toevoegen"
+            icon="add"
+            color="primary"
+            size="sm"
+            @click="props.addRow?.()"
+          />
+        </div>
         <q-space />
-        <div class="row items-center">
-          <span class="q-mr-md">Records per page:</span>
+        <div class="row items-center q-gutter-sm">
+          <q-select
+            v-if="typeof togglableColumns !== 'undefined'"
+            v-model="visibleColumnKeys"
+            :options="togglableCols"
+            option-label="label"
+            option-value="name"
+            emit-value
+            map-options
+            multiple
+            dense
+            borderless
+            optionsDense
+          >
+            <template v-slot:selected>
+              {{ visibleColumnKeys?.length ?? 0 }} / {{ togglableColumnKeys.length }} columns
+            </template>
+          </q-select>
+          <span class="q-mr-sm q-ml-md">Records per page:</span>
           <q-select
             :model-value="scope.pagination.rowsPerPage"
             :options="rowsPerPageOptions"
@@ -124,22 +257,29 @@
 </template>
 
 <script setup lang="ts" generic="T extends z.ZodRawShape">
-import { QTableColumn, useQuasar } from 'quasar'
+import { date, QDate, QTableColumn, QTime, useQuasar } from 'quasar'
 import { capitalize, intersects } from 'radashi'
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import z from 'zod'
 import { getColumnInfo, numericProps, visualProps, ZodTableColumnProps } from './edit-utils'
+import { flattenSchema, getNestedValue, setNestedValue } from './nest-utils'
+import { useDateTimeModel } from './datetime-composables'
+import { ColumnKeyType, GotoAction, ZodRowType } from './table-types'
 
 //TODO! navigatie in de tabel kritisch bekijken, is dat te vereenvoudigen ?
+//TODO! All meta labels are english, consider translating via Key-Value property or translation files ?
 
 const $q = useQuasar()
+const { dateOrTimeModel } = useDateTimeModel<T>()
 
 defineOptions({
   inheritAttrs: false,
 })
 
-type Row = z.infer<z.ZodObject<T>>
-type ColumnKey = Extract<keyof Row, string>
+// Types
+type ColumnKey = ColumnKeyType<T>
+type Row = ZodRowType<T>
+type Action = 'add' | 'clone' | 'delete' | 'goto'
 
 const props = withDefaults(
   defineProps<{
@@ -150,12 +290,14 @@ const props = withDefaults(
     data: Row[]
     headerClass?: string
     headerStyle?: string
-    editable: boolean
+    showEditableToggle?: boolean
     editableColumns?: Array<ColumnKey | '*'>
     hideColumns?: Array<ColumnKey>
+    togglableColumns?: Array<ColumnKey | '*'>
     updateRow?: (row: Row) => void
     addRow?: (row?: Row) => void
     deleteRow?: (row: Row) => void
+    gotoRow?: ((row: Row) => void) | GotoAction<Row> | Array<GotoAction<Row>>
     initialRowsPerPage?: number
     actions?: Action[]
   }>(),
@@ -167,7 +309,8 @@ const props = withDefaults(
   },
 )
 
-type Action = 'add' | 'clone' | 'delete'
+// Via v-model to optionally notify parent
+const editable = defineModel<boolean>('editable')
 
 const totalRows = computed(() => props.data?.length || 0)
 const rowsPerPageOptions = [3, 5, 7, 10, 15, 20, 25, 50]
@@ -175,6 +318,7 @@ const hasActions = computed(() => props.actions && props.actions.length > 0)
 const canAdd = computed(() => props.actions?.includes('add') && props.addRow)
 const canClone = computed(() => props.actions?.includes('clone') && props.addRow)
 const canDelete = computed(() => props.actions?.includes('delete') && props.deleteRow)
+const canGoto = computed(() => props.actions?.includes('goto') && props.gotoRow)
 
 const getPaginationRange = (page: number, rowsPerPage: number) => {
   const firstRow = (page - 1) * rowsPerPage + 1
@@ -192,6 +336,15 @@ const onPopupKeydown = (e: KeyboardEvent, scope: { set: () => void }) => {
 }
 
 const confirmDelete = (row: Row) => {
+  if (!$q.dialog) {
+    // This is a developer error, not a runtime crash
+    console.error(
+      '[ZodTable] Quasar Dialog plugin is not installed. ' +
+        'Install it via `quasar new plugin dialog` or add it to quasar.config.ts plugins.',
+    )
+    return
+  }
+
   $q.dialog({
     title: 'Confirm Delete',
     message: 'Are you sure you want to delete this row?',
@@ -202,42 +355,85 @@ const confirmDelete = (row: Row) => {
   })
 }
 
-const cloneRow = (row: Row) => {
-  props.addRow?.(row)
-}
-
-const addNewRow = () => {
-  props.addRow?.()
-}
-
-const handleSave = (row: Row, colName: ColumnKey, newValue: string) => {
-  const key = colName as keyof Row
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ;(row as any)[key] = newValue
-  props.updateRow?.(row)
-}
-
-const columns = computed<(QTableColumn & ZodTableColumnProps)[]>(() =>
-  Object.keys(props.rowModel.shape)
-    .filter((key) => !(props.hideColumns ?? []).includes(key as ColumnKey))
-    .map((key) => {
+const flattenedSchema = flattenSchema(props.rowModel)
+const columns = computed<(QTableColumn & ZodTableColumnProps)[]>(() => {
+  const t = Object.entries(flattenedSchema)
+    .filter(([key]) => !(props.hideColumns ?? []).includes(key as ColumnKey))
+    .map(([key, colSchema]) => {
       const keyCast = key as ColumnKey
-      const colSchema = props.rowModel.shape[key] as z.ZodType
       const meta = getColumnInfo(colSchema, key, props.extraColumnOptions?.[keyCast])
       return {
         name: key,
-        label: getColumnLabel(key) ?? capitalize(key),
+        label: getColumnLabel(key) ?? capitalize(key.split('.').slice(-1)[0]),
         field: key,
         align: 'left' as const,
         sortable: true,
         headerClasses: props.headerClass,
         headerStyle: props.headerStyle,
         ...meta,
-        editable: props.editable && intersects(props.editableColumns ?? [], [keyCast, '*']),
+        editable: editable.value && intersects(props.editableColumns ?? [], [keyCast, '*']),
         colSchema,
       }
-    }),
+    })
+  return t
+})
+
+const togglableColumnKeys = computed<ColumnKey[]>(() => {
+  if (!props.togglableColumns) return []
+  if (props.togglableColumns.includes('*')) {
+    return columns.value.map((c) => c.name as ColumnKey)
+  }
+
+  return props.togglableColumns as ColumnKey[]
+})
+
+const togglableCols = computed(() => {
+  return columns.value.filter((col) => togglableColumnKeys.value.includes(col.name as ColumnKey))
+})
+
+const visibleColumnKeys = ref<ColumnKey[]>()
+
+const filteredColumns = computed(() =>
+  columns.value.filter((c) => (visibleColumnKeys.value as ColumnKey[])?.includes(c.name as ColumnKey)),
+)
+
+/**
+ * Since gotoRow can be a function, a single or an array of GotoAction
+ * We transform the function to an instance of GotoAction
+ * If a single instance we transform to GotoAction[]
+ */
+const normalizedGotoRows = computed<GotoAction<Row>[]>(() => {
+  if (!props.gotoRow) return []
+  if (typeof props.gotoRow === 'function') {
+    return [{ key: 'goto', handler: props.gotoRow, icon: 'details' }]
+  }
+  return Array.isArray(props.gotoRow) ? props.gotoRow : [props.gotoRow]
+})
+
+watch(
+  () => props.togglableColumns,
+  (newValue) => {
+    visibleColumnKeys.value =
+      !newValue || newValue.includes('*') ? columns.value.map((c) => c.name as ColumnKey) : (newValue as ColumnKey[])
+  },
+  { immediate: true },
 )
 </script>
 
-<style scoped></style>
+<style>
+/** Popup inherits the table column width, resulting in an overly wide wrapper  */
+.q-popup-proxy-in-table {
+  min-width: unset !important;
+}
+</style>
+
+<style scoped>
+/** Mimics the clearable quasar component style */
+.hover-opacity {
+  opacity: 0.6;
+}
+
+.hover-opacity:hover {
+  opacity: 1;
+}
+</style>

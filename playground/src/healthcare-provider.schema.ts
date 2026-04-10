@@ -1,4 +1,5 @@
 import z from 'zod'
+import { HealthcareProviderExtraSchema } from './healthcare-provider-extra.schema'
 
 export const DocTypeValues = ['dokter', 'dierenarts', 'verpleeg(st)er', 'bioloog'] as const
 export const DocType = z.enum(DocTypeValues)
@@ -11,8 +12,11 @@ export const HealthcareProviderSchema = z.object({
   address: z.string().min(1).default('Geneeskundestraat 1, 1000 Brussel'),
   docType: DocType.default('dokter'),
   office: z.string().default('A'),
+  hospital: z.number().optional(),
   requestCounter: z.int().default(0),
   active: z.boolean().default(false),
+  firstSeenAt: z.string().datetime().optional(),
+  extra: HealthcareProviderExtraSchema.optional(),
 })
 
 export type HealthcareProvider = z.infer<typeof HealthcareProviderSchema>

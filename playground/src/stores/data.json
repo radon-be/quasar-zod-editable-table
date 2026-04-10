@@ -1,0 +1,55 @@
+[
+  {
+    "id": 1,
+    "firstName": "Dokter",
+    "name": "Bibber",
+    "address": "Marke",
+    "docType": "dokter",
+    "office": "A",
+    "requestCounter": 145,
+    "active": true,
+    "firstSeenAt": "2026-01-27T16:13:05.000Z",
+    "extra": {
+      "requestedAt": "2026-01-27T16:13:05.000Z",
+      "requestedTime": "2026-01-27T16:13:05.000Z",
+      "extraType": "foo",
+      "description": "desc"
+    }
+  },
+  {
+    "id": 2,
+    "firstName": "Louis",
+    "name": "Pasteur",
+    "address": "Kortrijk",
+    "docType": "bioloog",
+    "office": "B",
+    "hospital": 1,
+    "requestCounter": 0,
+    "active": true,
+    "firstSeenAt": "2026-01-27T16:13:05.000Z",
+    "extra": {
+      "requestedAt": "2026-01-27T16:13:05.000Z",
+      "requestedTime": "2026-01-27T17:23:05.000Z",
+      "extraType": "foo",
+      "description": "desc"
+    }
+  },
+  {
+    "id": 3,
+    "firstName": "Hippocrates",
+    "name": "Kos",
+    "address": "Kortrijk",
+    "docType": "dokter",
+    "office": "C",
+    "hospital": 2,
+    "requestCounter": 10,
+    "active": false,
+    "firstSeenAt": "2026-01-27T16:13:05.000Z",
+    "extra": {
+      "requestedAt": "2026-01-27T16:13:05.000Z",
+      "requestedTime": "2026-01-25T08:45:05.000Z",
+      "extraType": "foo",
+      "description": "desc"
+    }
+  }
+]
