@@ -39,11 +39,22 @@
   },
   "keywords": [
     "quasar",
+    "quasar-framework",
     "vue",
+    "vue3",
+    "vuejs",
     "zod",
     "table",
+    "editable-table",
+    "data-table",
     "component",
-    "app-extension"
+    "app-extension",
+    "typescript",
+    "schema-validation",
+    "form-validation",
+    "crud",
+    "datepicker",
+    "timepicker"
   ],
   "dependencies": {
     "radashi": "^12.7.1",
