@@ -25,14 +25,18 @@ npm install @radon-be/quasar-app-extension-zod-table
 - Global `editable` an per-column `editable-columns` props to enable/disable editing
 - `hide-columns` props to hide some columns from the dataset
 - `column-labels` prop to re-label columns
-- SUpport for re-lableing columns
+- Support for re-labeling columns
 - Visual indicators (flat, bordered, ...) are passed-through
-- `header-class` and `header-stype` props to customize the headers
+- `header-class` and `header-style` props to customize the headers
 - Optional `actions` column
 - `string` data is edited in a regular `q-input`
 - `number` data in a specialised `q-input` and cleaned up after editing (e.g. 00034 -> 34)
 - `bool` data is represented as a checkbox
 - `enum` data as a dropdown
+- `date` and `time` support with date/time pickers for `z.string().datetime()` schemas
+- **Complex/nested properties**: Support for nested object properties using dot notation (e.g., `extra.requestedAt`)
+- **Foreign key support**: Dropdown with complex objects using `colEditType: 'foreign-key'` with `optionLabel` and `optionValue`
+- **Clearable fields**: Optional clear button for date, time, and foreign key fields
 - In Edit mode: `Enter` key = save ; `Esc` key = cancel
 - `string` props can be edited with a dropdown box by adding a `extraColumnOptions` option
 
@@ -82,18 +86,115 @@ function handleUpdate(updatedRow: User) {
 </script>
 ```
 
+### Advanced Features
+
+#### Date and Time Fields
+
+Use Zod's datetime schema to enable date/time pickers:
+
+```typescript
+const schema = z.object({
+  createdAt: z.string().datetime().optional(),
+  scheduledTime: z.string().datetime().optional(),
+})
+```
+
+Configure with `extraColumnOptions`:
+
+```vue
+<ZodTable
+  :row-model="schema"
+  :data="rows"
+  :extraColumnOptions="{
+    createdAt: {
+      colEditType: 'date',
+      clearable: true,
+    },
+    scheduledTime: {
+      colEditType: 'time',
+      clearable: true,
+    },
+  }"
+/>
+```
+
+#### Nested/Complex Properties
+
+Define nested schemas and access them with dot notation:
+
+```typescript
+const extraSchema = z.object({
+  notes: z.string().optional(),
+  requestedAt: z.string().datetime().optional(),
+})
+
+const mainSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  extra: extraSchema.optional(),
+})
+```
+
+Use dot notation in `column-labels` and `extraColumnOptions`:
+
+```vue
+<ZodTable
+  :row-model="mainSchema"
+  :column-labels="{
+    'extra.requestedAt': 'Request Date',
+    'extra.notes': 'Additional Notes',
+  }"
+  :extraColumnOptions="{
+    'extra.requestedAt': {
+      colEditType: 'date',
+      clearable: true,
+    },
+  }"
+/>
+```
+
+#### Foreign Key Support
+
+Create dropdowns with complex objects:
+
+```vue
+<ZodTable
+  :row-model="schema"
+  :extraColumnOptions="{
+    officeId: {
+      colEditType: 'foreign-key',
+      options: [
+        { id: 'A', label: 'Main Office', address: 'Street 1' },
+        { id: 'B', label: 'Branch Office', address: 'Street 2' },
+      ],
+      optionLabel: 'label',
+      optionValue: 'id',
+      clearable: true,
+    },
+  }"
+/>
+```
+
+The table will display the `label` but store the `id` value.
+
 ## Props
 
-| Prop               | Type        | Description                                               |
-| ------------------ | ----------- | --------------------------------------------------------- |
-| `row-model`        | `ZodObject` | The Zod schema defining the table structure.              |
-| `data`             | `Array`     | The data rows to display.                                 |
-| `row-key`          | `String`    | Property name to use as a unique key for rows (required). |
-| `update-row`       | `Function`  | Callback for row updates `(row) => void`.                 |
-| `add-row`          | `Function`  | Callback for adding rows.                                 |
-| `delete-row`       | `Function`  | Callback for deleting rows.                               |
-| `editable`         | `Boolean`   | Enable editing mode.                                      |
-| `editable-columns` | `Array`     | List of keys (or `['*']`) that are editable.              |
+| Prop                  | Type        | Description                                                                                                                                                                 |
+| --------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `row-model`           | `ZodObject` | The Zod schema defining the table structure.                                                                                                                                |
+| `data`                | `Array`     | The data rows to display.                                                                                                                                                   |
+| `row-key`             | `String`    | Property name to use as a unique key for rows (required).                                                                                                                   |
+| `update-row`          | `Function`  | Callback for row updates `(row) => void`.                                                                                                                                   |
+| `add-row`             | `Function`  | Callback for adding rows.                                                                                                                                                   |
+| `delete-row`          | `Function`  | Callback for deleting rows.                                                                                                                                                 |
+| `editable`            | `Boolean`   | Enable editing mode.                                                                                                                                                        |
+| `editable-columns`    | `Array`     | List of keys (or `['*']`) that are editable.                                                                                                                                |
+| `hide-columns`        | `Array`     | List of column keys to hide from display.                                                                                                                                   |
+| `column-labels`       | `Object`    | Map of column keys to custom labels. Supports nested properties with dot notation (e.g., `'extra.field': 'Label'`).                                                         |
+| `extraColumnOptions`  | `Object`    | Advanced column configuration. Set `colEditType` ('date', 'time', 'foreign-key'), `options`, `optionLabel`, `optionValue`, and `clearable` for specific columns.           |
+| `actions`             | `Array`     | Enable action buttons: `['add', 'clone', 'delete', 'goto']`.                                                                                                                |
+| `goto-row`            | `Array`     | Array of goto actions with `key`, `icon`, `label`, and `handler` properties.                                                                                                |
+| `initial-rows-per-page` | `Number`  | Number of rows to display per page initially.                                                                                                                               |
 
 ## License
 
