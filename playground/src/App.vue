@@ -47,7 +47,7 @@
           clearable: true,
         },
         ['extra.requestedAt']: {
-          colEditType: 'date',
+          colEditType: 'datetime',
           clearable: true,
         },
         ['extra.requestedTime']: {
@@ -74,6 +74,7 @@
       ]"
       :initial-rows-per-page="10"
       :actions="['add', 'clone', 'delete', 'goto']"
+      @update-togglable-columns="(cols) => console.log('update-togglable-columns changed', cols)"
     />
   </div>
 </template>
