@@ -16,6 +16,10 @@ Or install via npm:
 npm install @radon-be/quasar-app-extension-zod-table
 ```
 
+### Requirements
+
+- **Quasar Dialog Plugin**: Required for delete row confirmation dialogs. Make sure the Dialog plugin is installed in your Quasar config (`quasar.config.ts`).
+
 ## Features
 
 - Strongly typed
@@ -33,10 +37,15 @@ npm install @radon-be/quasar-app-extension-zod-table
 - `number` data in a specialised `q-input` and cleaned up after editing (e.g. 00034 -> 34)
 - `bool` data is represented as a checkbox
 - `enum` data as a dropdown
-- `date` and `time` support with date/time pickers for `z.string().datetime()` schemas
+- `datetime` support with date/time pickers for `z.string().datetime()` schemas
+- `date` and `time` support with specialized date/time pickers
+- **Read-only fields**: Fields marked with `z.readonly()` cannot be edited
 - **Complex/nested properties**: Support for nested object properties using dot notation (e.g., `extra.requestedAt`)
 - **Foreign key support**: Dropdown with complex objects using `colEditType: 'foreign-key'` with `optionLabel` and `optionValue`
 - **Clearable fields**: Optional clear button for date, time, and foreign key fields
+- **Togglable Columns**: Show/hide columns dynamically with the `togglable-columns` prop
+- **Date/Time Picker**: Quick access "Now" button to set current date/time, "Clear" button to remove value
+- **Delete Confirmation**: Confirmation dialog before deleting rows (requires Quasar Dialog plugin)
 - In Edit mode: `Enter` key = save ; `Esc` key = cancel
 - `string` props can be edited with a dropdown box by adding a `extraColumnOptions` option
 
@@ -62,7 +71,7 @@ import { ref } from 'vue'
 import { z } from 'zod'
 
 const userSchema = z.object({
-  id: z.number().readonly(),
+  id: z.number().readonly(), // Read-only fields cannot be edited
   name: z.string().min(1, 'Name is required'),
   email: z.string().email(),
   role: z.enum(['admin', 'user']),
@@ -187,14 +196,75 @@ The table will display the `label` but store the `id` value.
 | `update-row`          | `Function`  | Callback for row updates `(row) => void`.                                                                                                                                   |
 | `add-row`             | `Function`  | Callback for adding rows.                                                                                                                                                   |
 | `delete-row`          | `Function`  | Callback for deleting rows.                                                                                                                                                 |
-| `editable`            | `Boolean`   | Enable editing mode.                                                                                                                                                        |
+| `editable`            | `Boolean`   | Enable editing mode. Can be used as `v-model:editable` for two-way binding.                                                                                                  |
 | `editable-columns`    | `Array`     | List of keys (or `['*']`) that are editable.                                                                                                                                |
 | `hide-columns`        | `Array`     | List of column keys to hide from display.                                                                                                                                   |
+| `togglable-columns`   | `Array`     | List of keys (or `['*']`) that can be toggled on/off by the user.                                                                                                           |
 | `column-labels`       | `Object`    | Map of column keys to custom labels. Supports nested properties with dot notation (e.g., `'extra.field': 'Label'`).                                                         |
-| `extraColumnOptions`  | `Object`    | Advanced column configuration. Set `colEditType` ('date', 'time', 'foreign-key'), `options`, `optionLabel`, `optionValue`, and `clearable` for specific columns.           |
+| `header-class`        | `String`    | CSS class applied to table headers.                                                                                                                                        |
+| `header-style`        | `String`    | Inline styles applied to table headers.                                                                                                                                    |
+| `show-editable-toggle` | `Boolean`  | Show/hide the editable toggle in the table footer (default: `false`).                                                                                                        |
+| `extraColumnOptions`  | `Object`    | Advanced column configuration. Set `colEditType` ('date', 'time', 'datetime', 'foreign-key'), `options`, `optionLabel`, `optionValue`, and `clearable` for specific columns. |
 | `actions`             | `Array`     | Enable action buttons: `['add', 'clone', 'delete', 'goto']`.                                                                                                                |
-| `goto-row`            | `Array`     | Array of goto actions with `key`, `icon`, `label`, and `handler` properties.                                                                                                |
+| `goto-row`            | `Array` \\| `Function` | Array of goto actions with `key`, `icon`, `label`, and `handler` properties, or a single handler function.                                                                 |
 | `initial-rows-per-page` | `Number`  | Number of rows to display per page initially.                                                                                                                               |
+
+## V-Model
+
+- `v-model:editable` - Two-way binding for the editable state. When the user toggles the editable mode in the table footer (if `show-editable-toggle` is enabled), this binding will update.
+
+## Events
+
+| Event                      | Payload       | Description                                                                                                             |
+| -------------------------- | ------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `update-togglable-columns` | `ColumnKey[]` | Emitted when the user toggles column visibility. Payload is an array of currently visible column keys. Use this to store column preferences in localStorage or other persistent storage. |
+
+### Persisting Column Visibility
+
+You can persist column visibility preferences to localStorage:
+
+```vue
+<template>
+  <ZodTable
+    :row-model="schema"
+    :data="rows"
+    :togglable-columns="['*']"
+    v-model:editable="isEditing"
+    :show-editable-toggle="true"
+    @update-togglable-columns="handleColumnToggle"
+  />
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted, watch } from 'vue'
+
+const isEditing = ref(false)
+
+onMounted(() => {
+  // Load saved column preferences from localStorage
+  const saved = localStorage.getItem('tableColumns')
+  if (saved) {
+    // You can apply saved columns here
+  }
+  
+  // Load saved editable state
+  const wasEditing = localStorage.getItem('tableEditable')
+  if (wasEditing === 'true') {
+    isEditing.value = true
+  }
+})
+
+function handleColumnToggle(columns: string[]) {
+  // Save column visibility to localStorage
+  localStorage.setItem('tableColumns', JSON.stringify(columns))
+}
+
+// Watch editable state and save it
+watch(() => isEditing.value, (val) => {
+  localStorage.setItem('tableEditable', String(val))
+})
+</script>
+```
 
 ## License
 
