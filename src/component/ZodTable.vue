@@ -75,13 +75,13 @@
 
             <template v-else>
               <!-- any other column types (that use popup edit) -->
-
-              <template v-if="col.colEditType === 'date' || col.colEditType === 'time'">
+              <template v-if="col.colEditType === 'date' || col.colEditType === 'time' || col.colEditType === 'datetime'">
                 <div class="row justify-between items-center" style="flex-wrap: nowrap">
                   {{
                     date.formatDate(
                       getNestedValue(slotProps.row, col.name),
-                      col.colEditType === 'date' ? 'DD-MM-YYYY' : 'HH:mm',
+                        col.colEditType === 'date' ? 'DD-MM-YYYY' : 
+                          col.colEditType === 'time' ? 'HH:mm' : 'DD-MM-YYYY HH:mm',
                     )
                   }}
                   <q-icon
@@ -106,23 +106,25 @@
 
               <template v-if="editable && col.editable">
                 <q-popup-proxy
-                  v-if="col.colEditType === 'date' || col.colEditType === 'time'"
+                  v-if="col.colEditType === 'date' || col.colEditType === 'time' || col.colEditType === 'datetime'"
                   cover
                   transition-show="scale"
                   transition-hide="scale"
                   class="q-popup-proxy-in-table"
+                  @before-show="dateTimeStep = 'date'"
                 >
                   <component
-                    :is="col.colEditType === 'date' ? QDate : QTime"
-                    v-model="dateOrTimeModel(slotProps.row, col.name, col.colEditType, props.updateRow).value"
-                    v-bind="col.colEditType === 'date' ? { firstDayOfWeek: '1' } : { format24h: true }"
+                    :is="getDateTimeType(col.colEditType) === 'date' ? QDate : QTime"
+                    v-model="dateOrTimeModel(slotProps.row, col.name, getDateTimeType(col.colEditType), props.updateRow).value"
+                    v-bind="getDateTimeType(col.colEditType) === 'date' ? { firstDayOfWeek: '1' } : { format24h: true }"
+                    @update:model-value="col.colEditType === 'datetime' && dateTimeStep === 'date' ? dateTimeStep = 'time' : null"
                   >
                     <div class="row items-center justify-between">
                       <q-btn
                         label="Now"
                         color="primary"
                         flat
-                        @click="setNestedValue(slotProps.row, col.name, new Date())"
+                        @click="setNestedValue(slotProps.row, col.name, new Date().toISOString())"
                       />
                       <q-btn
                         v-close-popup
@@ -219,6 +221,7 @@
           <q-select
             v-if="typeof togglableColumns !== 'undefined'"
             v-model="visibleColumnKeys"
+            @update:model-value="emit('update-togglable-columns', visibleToggles)"
             :options="togglableCols"
             option-label="label"
             option-value="name"
@@ -230,7 +233,7 @@
             optionsDense
           >
             <template v-slot:selected>
-              {{ visibleColumnKeys?.length ?? 0 }} / {{ togglableColumnKeys.length }} columns
+              {{ visibleTogglesCount }} / {{ togglableColumnKeys.length }} columns
             </template>
           </q-select>
           <span class="q-mr-sm q-ml-md">Records per page:</span>
@@ -259,9 +262,9 @@
 <script setup lang="ts" generic="T extends z.ZodRawShape">
 import { date, QDate, QTableColumn, QTime, useQuasar } from 'quasar'
 import { capitalize, intersects } from 'radashi'
-import { computed, ref, watch } from 'vue'
+import { computed, ComputedRef, ref, watch } from 'vue'
 import z from 'zod'
-import { getColumnInfo, numericProps, visualProps, ZodTableColumnProps } from './edit-utils'
+import { ColEditType, getColumnInfo, numericProps, visualProps, ZodTableColumnProps } from './edit-utils'
 import { flattenSchema, getNestedValue, setNestedValue } from './nest-utils'
 import { useDateTimeModel } from './datetime-composables'
 import { ColumnKeyType, GotoAction, ZodRowType } from './table-types'
@@ -309,8 +312,14 @@ const props = withDefaults(
   },
 )
 
+const emit = defineEmits<{
+  (e: 'update-togglable-columns', value: ColumnKey[]): void
+}>()
+
 // Via v-model to optionally notify parent
 const editable = defineModel<boolean>('editable')
+
+const dateTimeStep = ref<'date' | 'time'>('date')
 
 const totalRows = computed(() => props.data?.length || 0)
 const rowsPerPageOptions = [3, 5, 7, 10, 15, 20, 25, 50]
@@ -324,6 +333,16 @@ const getPaginationRange = (page: number, rowsPerPage: number) => {
   const firstRow = (page - 1) * rowsPerPage + 1
   const lastRow = Math.min(page * rowsPerPage, totalRows.value)
   return { firstRow, lastRow }
+}
+
+const getDateTimeType = (colEditType: ColEditType) => {
+  if (colEditType === 'date' || (colEditType === 'datetime' && dateTimeStep.value === 'date')) {
+    return 'date'
+  } else if (colEditType === 'time' || (colEditType === 'datetime' && dateTimeStep.value === 'time')) {
+    return 'time'
+  } else {
+    return 'date'
+  }
 }
 
 const getColumnLabel = (key: string) => (props.columnLabels as Record<string, string> | undefined)?.[key]
@@ -365,7 +384,7 @@ const columns = computed<(QTableColumn & ZodTableColumnProps)[]>(() => {
       return {
         name: key,
         label: getColumnLabel(key) ?? capitalize(key.split('.').slice(-1)[0]),
-        field: key,
+        field: (row: Row) => getNestedValue(row, key),
         align: 'left' as const,
         sortable: true,
         headerClasses: props.headerClass,
@@ -388,14 +407,38 @@ const togglableColumnKeys = computed<ColumnKey[]>(() => {
 })
 
 const togglableCols = computed(() => {
-  return columns.value.filter((col) => togglableColumnKeys.value.includes(col.name as ColumnKey))
+  return baseColumns.value.filter((col) =>
+    togglableColumnKeys.value.includes(col.name as ColumnKey)
+  )
 })
 
-const visibleColumnKeys = ref<ColumnKey[]>()
+// const visibleColumnKeys = ref<ColumnKey[]>()
+const _manualVisible = ref<ColumnKey[] | null>(null)
+const visibleColumnKeys = computed<ColumnKey[]>({
+  get(): ColumnKey[] {
+    const defaults = baseColumns.value.map(c => c.name as ColumnKey)
+    return (_manualVisible.value ?? defaults) as ColumnKey[]
+  },
+  set(val: ColumnKey[]) {
+    _manualVisible.value = val
+  }
+})
 
-const filteredColumns = computed(() =>
-  columns.value.filter((c) => (visibleColumnKeys.value as ColumnKey[])?.includes(c.name as ColumnKey)),
-)
+const filteredColumns = computed(() => {
+  const visibleSet = new Set(visibleColumnKeys.value)
+
+  return baseColumns.value.filter((c) => {
+    const key = c.name as ColumnKey
+
+    // always show non-togglable columns
+    if (!togglableColumnKeys.value.includes(key)) {
+      return true
+    }
+
+    // togglable columns depend on selection
+    return visibleSet.has(key)
+  })
+})
 
 /**
  * Since gotoRow can be a function, a single or an array of GotoAction
@@ -410,14 +453,21 @@ const normalizedGotoRows = computed<GotoAction<Row>[]>(() => {
   return Array.isArray(props.gotoRow) ? props.gotoRow : [props.gotoRow]
 })
 
-watch(
-  () => props.togglableColumns,
-  (newValue) => {
-    visibleColumnKeys.value =
-      !newValue || newValue.includes('*') ? columns.value.map((c) => c.name as ColumnKey) : (newValue as ColumnKey[])
-  },
-  { immediate: true },
+const baseColumns = computed(() =>
+  columns.value.filter(
+    (c) => !(props.hideColumns ?? []).includes(c.name as ColumnKey)
+  )
 )
+
+const visibleToggles = computed(() => {
+  return visibleColumnKeys.value?.filter((key) =>
+    togglableColumnKeys.value.includes(key)
+  )
+})
+
+const visibleTogglesCount = computed(() => {
+  return visibleToggles.value.length
+})
 </script>
 
 <style>

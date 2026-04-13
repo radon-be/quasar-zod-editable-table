@@ -1,7 +1,7 @@
 import { isString } from 'radashi'
 import { z } from 'zod'
 
-export type ColEditType = 'string' | 'integer' | 'real' | 'static-enum' | 'foreign-key' | 'boolean' | 'date' | 'time'
+export type ColEditType = 'string' | 'integer' | 'real' | 'static-enum' | 'foreign-key' | 'boolean' | 'date' | 'time' | 'datetime'
 
 export interface ZodTableColumnProps<T = any> {
   colEditType: ColEditType
