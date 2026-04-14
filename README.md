@@ -62,6 +62,24 @@ You can use the component in two ways:
 import { ZodTable } from '@radon-be/quasar-app-extension-zod-table'
 ```
 
+#### Global component IntelliSense (Quasar project)
+
+When using the component as a global component via the app extension, add the following to your `src/env.d.ts` to enable prop IntelliSense in Vue templates:
+
+```ts
+import { type ZodTable as ZodTableComponent } from '@radon-be/quasar-app-extension-zod-table';
+
+declare module '@vue/runtime-core' {
+  export interface GlobalComponents {
+    ZodTable: typeof ZodTableComponent;
+  }
+}
+
+export {};
+```
+
+> **Note:** Augment `@vue/runtime-core` (not `vue`) and use `typeof` on the imported value — this is required for Volar to resolve prop types in templates.
+
 ## Usage
 
 Use the `ZodTable` component in your Vue files.

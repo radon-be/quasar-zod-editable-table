@@ -5,13 +5,15 @@
   "author": "Stefaan Vandevelde",
   "license": "MIT",
   "type": "module",
-  "main": "dist/index.js",
-  "types": "dist/types/index.d.ts",
+  "main": "dist/components.js",
+  "types": "dist/types/components.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/types/index.d.ts",
-      "import": "./dist/index.js"
-    }
+      "types": "./dist/types/components.d.ts",
+      "import": "./dist/components.js"
+    },
+    "./package.json": "./package.json",
+    "./dist/*": "./dist/*"
   },
   "scripts": {
     "test": "echo \"No test specified\" && exit 0",
@@ -73,5 +75,12 @@
   "peerDependencies": {
     "quasar": "^2.0.0",
     "vue": "^3.0.0"
+  },
+  "quasar": {
+    "appExtension": {
+      "id": "zod-table",
+      "shortName": "Zod Table",
+      "vueVersion": "3"
+    }
   }
 }
