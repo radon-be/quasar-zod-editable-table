@@ -295,6 +295,7 @@ const props = withDefaults(
     headerStyle?: string
     showEditableToggle?: boolean
     editableColumns?: Array<ColumnKey | '*'>
+    defaultToggledColumns?: Array<ColumnKey | '*'>
     hideColumns?: Array<ColumnKey>
     togglableColumns?: Array<ColumnKey | '*'>
     updateRow?: (row: Row) => void
@@ -413,15 +414,35 @@ const togglableCols = computed(() => {
 })
 
 // const visibleColumnKeys = ref<ColumnKey[]>()
+const defaultVisibleColumnKeys = computed<ColumnKey[]>(() => {
+  const baseKeys = baseColumns.value.map((c) => c.name as ColumnKey)
+
+  // If no togglable columns are configured, everything in base is visible
+  if (!props.togglableColumns) return baseKeys
+
+  const togglableSet = new Set(togglableColumnKeys.value)
+
+  const defaultToggles =
+    !props.defaultToggledColumns || props.defaultToggledColumns.includes('*')
+      ? togglableColumnKeys.value
+      : (props.defaultToggledColumns.filter((k) =>
+          togglableSet.has(k as ColumnKey),
+        ) as ColumnKey[])
+
+  const defaultToggleSet = new Set(defaultToggles)
+
+  return baseKeys.filter((k) => !togglableSet.has(k) || defaultToggleSet.has(k))
+})
+
 const _manualVisible = ref<ColumnKey[] | null>(null)
+
 const visibleColumnKeys = computed<ColumnKey[]>({
   get(): ColumnKey[] {
-    const defaults = baseColumns.value.map(c => c.name as ColumnKey)
-    return (_manualVisible.value ?? defaults) as ColumnKey[]
+    return (_manualVisible.value ?? defaultVisibleColumnKeys.value) as ColumnKey[]
   },
   set(val: ColumnKey[]) {
     _manualVisible.value = val
-  }
+  },
 })
 
 const filteredColumns = computed(() => {

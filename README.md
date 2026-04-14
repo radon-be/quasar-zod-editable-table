@@ -10,7 +10,7 @@ To install this Quasar App Extension, run:
 quasar ext add @radon-be/zod-table
 ```
 
-Or install via npm:
+Or install the package directly via npm:
 
 ```bash
 npm install @radon-be/quasar-app-extension-zod-table
@@ -26,8 +26,8 @@ npm install @radon-be/quasar-app-extension-zod-table
 - **Schema Driven**: Columns are generated automatically from Zod object definition.
 - **Validation**: Input cells validate against the Zod schema.
 - **Quasar Integration**: Built on top of `q-table` and `q-input`.
-- Global `editable` an per-column `editable-columns` props to enable/disable editing
-- `hide-columns` props to hide some columns from the dataset
+- Global `editable` and per-column `editable-columns` props to enable/disable editing
+- `hide-columns` prop to hide specific columns from the dataset
 - `column-labels` prop to re-label columns
 - Support for re-labeling columns
 - Visual indicators (flat, bordered, ...) are passed-through
@@ -47,7 +47,20 @@ npm install @radon-be/quasar-app-extension-zod-table
 - **Date/Time Picker**: Quick access "Now" button to set current date/time, "Clear" button to remove value
 - **Delete Confirmation**: Confirmation dialog before deleting rows (requires Quasar Dialog plugin)
 - In Edit mode: `Enter` key = save ; `Esc` key = cancel
-- `string` props can be edited with a dropdown box by adding a `extraColumnOptions` option
+- `string` props can be edited with a dropdown box by adding an `extraColumnOptions` option
+
+### IntelliSense
+
+For TypeScript prop IntelliSense in Vue templates, make sure the Vue language server (Volar) is enabled in your project.
+
+You can use the component in two ways:
+
+- As a global component via the Quasar App Extension boot registration.
+- As a named import:
+
+```ts
+import { ZodTable } from '@radon-be/quasar-app-extension-zod-table'
+```
 
 ## Usage
 
@@ -200,6 +213,7 @@ The table will display the `label` but store the `id` value.
 | `editable-columns`    | `Array`     | List of keys (or `['*']`) that are editable.                                                                                                                                |
 | `hide-columns`        | `Array`     | List of column keys to hide from display.                                                                                                                                   |
 | `togglable-columns`   | `Array`     | List of keys (or `['*']`) that can be toggled on/off by the user.                                                                                                           |
+| `default-toggled-columns` | `Array` | Initial visible set for togglable columns. Accepts column keys or `['*']`. Non-togglable columns remain visible.                                                           |
 | `column-labels`       | `Object`    | Map of column keys to custom labels. Supports nested properties with dot notation (e.g., `'extra.field': 'Label'`).                                                         |
 | `header-class`        | `String`    | CSS class applied to table headers.                                                                                                                                        |
 | `header-style`        | `String`    | Inline styles applied to table headers.                                                                                                                                    |
@@ -229,6 +243,7 @@ You can persist column visibility preferences to localStorage:
     :row-model="schema"
     :data="rows"
     :togglable-columns="['*']"
+    :default-toggled-columns="defaultColumns"
     v-model:editable="isEditing"
     :show-editable-toggle="true"
     @update-togglable-columns="handleColumnToggle"
@@ -239,12 +254,13 @@ You can persist column visibility preferences to localStorage:
 import { ref, onMounted, watch } from 'vue'
 
 const isEditing = ref(false)
+const defaultColumns = ref<string[]>(['name', 'email'])
 
 onMounted(() => {
   // Load saved column preferences from localStorage
   const saved = localStorage.getItem('tableColumns')
   if (saved) {
-    // You can apply saved columns here
+    defaultColumns.value = JSON.parse(saved)
   }
   
   // Load saved editable state

@@ -10,7 +10,8 @@
       header-style="font-size: 1rem;"
       editable
       show-editable-toggle
-      :togglable-columns="['*']"
+      :togglable-columns="['hospital', 'office', 'extra.requestedTime']"
+      :default-toggled-columns="['hospital']"
       :editable-columns="['*']"
       :hide-columns="['id']"
       :column-labels="{

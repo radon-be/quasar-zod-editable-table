@@ -12,3 +12,5 @@ export default function (api: IndexAPI) {
     conf.boot?.push('~@radon-be/quasar-app-extension-zod-table/dist/boot/register.js');
   });
 }
+
+export { default as ZodTable } from './component/ZodTable.vue'
