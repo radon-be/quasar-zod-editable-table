@@ -20,5 +20,22 @@ export type GotoAction<Row> = {
   key: string
   label?: string
   icon?: string
-  handler: (row: Row) => void
+  handler: (event: MouseEvent | undefined, row: Row) => void
+}
+
+export type I18nLabels = {
+  noData: string
+  noResults: string
+  addButton: string
+  columnsLabel: string
+  rowsPerPageLabel: string
+  paginationSeparator: string
+  editableToggle: string
+  cloneButtonTitle: string
+  deleteButtonTitle: string
+  datePickerNow: string
+  datePickerClear: string
+  datePickerClose: string
+  deleteConfirmTitle: string
+  deleteConfirmMessage: string
 }

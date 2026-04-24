@@ -4,8 +4,12 @@
     :rows="props.data"
     :row-key="props.rowKey"
     :rows-per-page-options="rowsPerPageOptions"
-    :pagination="{ rowsPerPage: props.initialRowsPerPage }"
+    v-model:pagination="pagination"
     v-bind="$attrs"
+    :hide-bottom="false"
+    :hide-pagination="false"
+     :no-data-label="i18n.noData"
+     :no-results-label="i18n.noResults"
   >
     <template v-slot:header="headerProps">
       <q-tr :props="headerProps">
@@ -121,20 +125,20 @@
                   >
                     <div class="row items-center justify-between">
                       <q-btn
-                        label="Now"
+                        :label="i18n.datePickerNow"
                         color="primary"
                         flat
                         @click="setNestedValue(slotProps.row, col.name, new Date().toISOString())"
                       />
                       <q-btn
                         v-close-popup
-                        label="Clear"
+                        :label="i18n.datePickerClear"
                         color="primary"
                         flat
                         @click="setNestedValue(slotProps.row, col.name, undefined)"
                         v-if="typeof getNestedValue(slotProps.row, col.name) !== 'undefined'"
                       />
-                      <q-btn v-close-popup label="Close" color="primary" flat />
+                      <q-btn v-close-popup :label="i18n.datePickerClose" color="primary" flat />
                     </div>
                   </component>
                 </q-popup-proxy>
@@ -177,7 +181,7 @@
                 size="sm"
                 dense
                 color="primary"
-                @click="gotoRow.handler(slotProps.row)"
+                @click="(event) => gotoRow.handler(event as MouseEvent, slotProps.row)"
                 :title="gotoRow.label"
               />
             </template>
@@ -188,7 +192,7 @@
               dense
               color="primary"
               @click="props.addRow?.(slotProps.row)"
-              title="clone"
+              :title="i18n.cloneButtonTitle"
             />
             <q-btn
               v-if="editable && canDelete"
@@ -197,19 +201,70 @@
               dense
               color="negative"
               @click="confirmDelete(slotProps.row)"
-              title="delete"
+              :title="i18n.deleteButtonTitle"
             />
           </div>
         </q-td>
       </q-tr>
     </template>
+    <template v-slot:no-data="scope">
+      <div class="column full-width">
+        <div class="row items-center q-px-md q-py-sm text-grey-7">
+          <q-icon :name="scope.icon" class="q-mr-sm" />
+          <span>{{ scope.message }}</span>
+        </div>
+        <div class="row items-center full-width q-px-none q-pb-sm">
+          <div class="row items-center q-gutter-sm">
+            <q-toggle v-if="showEditableToggle" v-model="editable" :title="i18n.editableToggle" />
+            <q-btn
+              v-if="canAdd && editable"
+              :label="i18n.addButton"
+              icon="add"
+              color="primary"
+              size="sm"
+              @click="props.addRow?.()"
+            />
+          </div>
+          <q-space />
+          <div class="row items-center q-gutter-sm">
+            <span v-if="typeof togglableColumns !== 'undefined'" class="q-mr-sm q-ml-md">{{ i18n.columnsLabel }}</span>
+            <q-select
+              v-if="typeof togglableColumns !== 'undefined'"
+              v-model="visibleColumnKeys"
+              @update:model-value="emit('update-togglable-columns', visibleToggles)"
+              :options="togglableCols"
+              option-label="label"
+              option-value="name"
+              emit-value
+              map-options
+              multiple
+              dense
+              borderless
+              optionsDense
+            >
+              <template v-slot:selected>
+                {{ visibleTogglesCount }} / {{ togglableColumnKeys.length }}
+              </template>
+            </q-select>
+            <span class="q-mr-sm q-ml-md">{{ i18n.rowsPerPageLabel }}</span>
+            <q-select
+              :model-value="pagination.rowsPerPage"
+              :options="rowsPerPageOptions"
+              v-bind="visualProps('rowsPerPage')"
+              @update:model-value="(val: any) => (pagination.rowsPerPage = val)"
+            />
+            <span class="q-ml-md">0-0 van {{ totalRows }}</span>
+          </div>
+        </div>
+      </div>
+    </template>
     <template v-slot:bottom="scope">
       <div class="row items-center full-width">
         <div class="row items-center q-gutter-sm">
-          <q-toggle v-if="showEditableToggle" v-model="editable" title="Editable" />
+          <q-toggle v-if="showEditableToggle" v-model="editable" :title="i18n.editableToggle" />
           <q-btn
             v-if="canAdd && editable"
-            label="Toevoegen"
+            :label="i18n.addButton"
             icon="add"
             color="primary"
             size="sm"
@@ -218,6 +273,7 @@
         </div>
         <q-space />
         <div class="row items-center q-gutter-sm">
+          <span v-if="typeof togglableColumns !== 'undefined'" class="q-mr-sm q-ml-md">{{ i18n.columnsLabel }}</span>
           <q-select
             v-if="typeof togglableColumns !== 'undefined'"
             v-model="visibleColumnKeys"
@@ -233,10 +289,10 @@
             optionsDense
           >
             <template v-slot:selected>
-              {{ visibleTogglesCount }} / {{ togglableColumnKeys.length }} columns
+              {{ visibleTogglesCount }} / {{ togglableColumnKeys.length }} 
             </template>
           </q-select>
-          <span class="q-mr-sm q-ml-md">Records per page:</span>
+          <span class="q-mr-sm q-ml-md">{{ i18n.rowsPerPageLabel }}</span>
           <q-select
             :model-value="scope.pagination.rowsPerPage"
             :options="rowsPerPageOptions"
@@ -247,7 +303,7 @@
             {{ getPaginationRange(scope.pagination.page, scope.pagination.rowsPerPage).firstRow }}-{{
               getPaginationRange(scope.pagination.page, scope.pagination.rowsPerPage).lastRow
             }}
-            of {{ totalRows }}
+            {{ i18n.paginationSeparator }} {{ totalRows }}
           </span>
           <template v-if="scope.pagesNumber > 1">
             <q-btn icon="chevron_left" flat dense :disable="scope.isFirstPage" @click="scope.prevPage" />
@@ -262,15 +318,32 @@
 <script setup lang="ts" generic="T extends z.ZodRawShape">
 import { date, QDate, QTableColumn, QTime, useQuasar } from 'quasar'
 import { capitalize, intersects } from 'radashi'
-import { computed, ComputedRef, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import z from 'zod'
 import { ColEditType, getColumnInfo, numericProps, visualProps, ZodTableColumnProps } from './edit-utils'
 import { flattenSchema, getNestedValue, setNestedValue } from './nest-utils'
 import { useDateTimeModel } from './datetime-composables'
-import { ColumnKeyType, GotoAction, ZodRowType } from './table-types'
+import { ColumnKeyType, GotoAction, I18nLabels, ZodRowType } from './table-types'
+import { useZodTableI18n } from '../composables/useZodTableI18n'
 
-//TODO! navigatie in de tabel kritisch bekijken, is dat te vereenvoudigen ?
-//TODO! All meta labels are english, consider translating via Key-Value property or translation files ?
+// TODO ! navigatie in de tabel kritisch bekijken, is dat te vereenvoudigen ?
+
+const defaultI18n: I18nLabels = {
+  noData: 'No data available',
+  noResults: 'No results found',
+  addButton: 'Add',
+  columnsLabel: 'Columns',
+  rowsPerPageLabel: 'Rows per page',
+  paginationSeparator: 'of',
+  editableToggle: 'Editable',
+  cloneButtonTitle: 'Clone',
+  deleteButtonTitle: 'Delete',
+  datePickerNow: 'Now',
+  datePickerClear: 'Clear',
+  datePickerClose: 'Close',
+  deleteConfirmTitle: 'Confirm Delete',
+  deleteConfirmMessage: 'Are you sure you want to delete this row?',
+}
 
 const $q = useQuasar()
 const { dateOrTimeModel } = useDateTimeModel<T>()
@@ -298,12 +371,14 @@ const props = withDefaults(
     defaultToggledColumns?: Array<ColumnKey | '*'>
     hideColumns?: Array<ColumnKey>
     togglableColumns?: Array<ColumnKey | '*'>
+    columnOrder?: ColumnKey[]
     updateRow?: (row: Row) => void
     addRow?: (row?: Row) => void
     deleteRow?: (row: Row) => void
-    gotoRow?: ((row: Row) => void) | GotoAction<Row> | Array<GotoAction<Row>>
+    gotoRow?: ((event: MouseEvent | undefined, row: Row) => void) | GotoAction<Row> | Array<GotoAction<Row>>
     initialRowsPerPage?: number
     actions?: Action[]
+    i18n?: Partial<I18nLabels>
   }>(),
   {
     headerClass: '',
@@ -321,6 +396,10 @@ const emit = defineEmits<{
 const editable = defineModel<boolean>('editable')
 
 const dateTimeStep = ref<'date' | 'time'>('date')
+const pagination = ref({ page: 1, rowsPerPage: props.initialRowsPerPage })
+
+const globalI18n = useZodTableI18n()
+const i18n = computed(() => ({ ...defaultI18n, ...(globalI18n?.value ?? {}), ...props.i18n }))
 
 const totalRows = computed(() => props.data?.length || 0)
 const rowsPerPageOptions = [3, 5, 7, 10, 15, 20, 25, 50]
@@ -366,8 +445,8 @@ const confirmDelete = (row: Row) => {
   }
 
   $q.dialog({
-    title: 'Confirm Delete',
-    message: 'Are you sure you want to delete this row?',
+    title: i18n.value.deleteConfirmTitle,
+    message: i18n.value.deleteConfirmMessage,
     cancel: true,
     persistent: true,
   }).onOk(() => {
@@ -448,7 +527,7 @@ const visibleColumnKeys = computed<ColumnKey[]>({
 const filteredColumns = computed(() => {
   const visibleSet = new Set(visibleColumnKeys.value)
 
-  return baseColumns.value.filter((c) => {
+  const visibleColumns = baseColumns.value.filter((c) => {
     const key = c.name as ColumnKey
 
     // always show non-togglable columns
@@ -459,6 +538,30 @@ const filteredColumns = computed(() => {
     // togglable columns depend on selection
     return visibleSet.has(key)
   })
+
+  if (!props.columnOrder || props.columnOrder.length === 0) {
+    return visibleColumns
+  }
+
+  const visibleByKey = new Map(
+    visibleColumns.map((col) => [col.name as ColumnKey, col])
+  )
+  const orderedColumns: (QTableColumn & ZodTableColumnProps)[] = []
+  const usedKeys = new Set<ColumnKey>()
+
+  for (const key of props.columnOrder) {
+    const col = visibleByKey.get(key)
+    if (col && !usedKeys.has(key)) {
+      orderedColumns.push(col)
+      usedKeys.add(key)
+    }
+  }
+
+  const remainingColumns = visibleColumns.filter(
+    (col) => !usedKeys.has(col.name as ColumnKey)
+  )
+
+  return [...orderedColumns, ...remainingColumns]
 })
 
 /**

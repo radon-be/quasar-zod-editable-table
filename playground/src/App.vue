@@ -4,6 +4,7 @@
       row-key="id"
       :row-model="HealthcareProviderSchema"
       :data="store.data"
+      :i18n
       flat
       bordered
       header-class="text-h6 bg-blue text-white"
@@ -24,6 +25,7 @@
         'extra.requestedAt': 'Requested at',
         'extra.requestedTime': 'Requested time',
       }"
+      :column-order="['extra.description']"
       :extraColumnOptions="{
         office: {
           colEditType: 'foreign-key',
@@ -76,7 +78,21 @@
       :initial-rows-per-page="10"
       :actions="['add', 'clone', 'delete', 'goto']"
       @update-togglable-columns="(cols) => console.log('update-togglable-columns changed', cols)"
-    />
+    >
+        <template v-slot:['body-cell-extra.description']="{ row }">
+          <div class="text-wrap" style="max-width: 200px;">
+            {{ row.extra?.description }}
+            <q-popup-edit
+              :model-value="row.extra?.description"
+              auto-save
+              v-slot="scope"
+              @save="(newValue) => (row.extra.description = newValue, store.updateRow(row))"
+            >
+              <q-input v-model="scope.value" dense autogrow />
+            </q-popup-edit>
+          </div>
+        </template>
+  </ZodTable>
   </div>
 </template>
 
@@ -87,11 +103,30 @@ import { useTableExampleStore } from './stores/healthcareProviderStore'
 
 const store = useTableExampleStore()
 
-const gotoRowDetails = (row: HealthcareProvider) => {
+const gotoRowDetails = (event: MouseEvent | undefined, row: HealthcareProvider) => {
+  console.log('gotoRowDetails event', event)
   console.log('gotoRowDetails', row)
 }
 
-const gotoRowMeasurements = (row: HealthcareProvider) => {
+const gotoRowMeasurements = (event: MouseEvent | undefined, row: HealthcareProvider) => {
+  console.log('gotoRowMeasurements event', event)
   console.log('gotoRowMeasurements', row)
+}
+
+const i18n = {
+  noData: 'Geen data beschikbaar',
+  noResults: 'Geen resultaten gevonden',
+  addButton: 'Toevoegen',
+  columnsLabel: 'Kolommen',
+  rowsPerPageLabel: 'Rijen per pagina',
+  paginationSeparator: 'van',
+  editableToggle: 'Editable',
+  cloneButtonTitle: 'Klonen',
+  deleteButtonTitle: 'Verwijderen',
+  datePickerNow: 'Nu',
+  datePickerClear: 'Wissen',
+  datePickerClose: 'Sluiten',
+  deleteConfirmTitle: 'Verwijdering bevestigen',
+  deleteConfirmMessage: 'Weet je zeker dat je deze rij wilt verwijderen?',
 }
 </script>
