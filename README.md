@@ -355,8 +355,8 @@ export const i18nLabels = ref<Partial<I18nLabels>>({
   // ... other overrides
 })
 
-export default boot(() => {
-  provideZodTableI18n(i18nLabels)
+export default boot(({ app }) => {
+  provideZodTableI18n(i18nLabels, app)
 })
 ```
 
@@ -475,8 +475,8 @@ const i18nLabels = ref({
   deleteConfirmMessage: 'Weet je zeker dat je deze rij wilt verwijderen?',
 })
 
-export default boot(() => {
-  provideZodTableI18n(i18nLabels)
+export default boot(({ app }) => {
+  provideZodTableI18n(i18nLabels, app)
 })
 ```
 
