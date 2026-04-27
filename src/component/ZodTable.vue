@@ -297,7 +297,7 @@
             :model-value="scope.pagination.rowsPerPage"
             :options="rowsPerPageOptions"
             v-bind="visualProps('rowsPerPage')"
-            @update:model-value="(val: any) => (scope.pagination.rowsPerPage = val)"
+            @update:model-value="(val: any) => { pagination.rowsPerPage = val; pagination.page = 1 }"
           />
           <span class="q-ml-md">
             {{ getPaginationRange(scope.pagination.page, scope.pagination.rowsPerPage).firstRow }}-{{
