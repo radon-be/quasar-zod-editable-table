@@ -14,7 +14,14 @@
     <template v-slot:header="headerProps">
       <q-tr :props="headerProps">
         <q-th v-for="col in headerProps.cols" :key="col.name" :props="headerProps">
-          {{ col.label }}
+          <slot
+            :name="`header-cell-${col.name}`"
+            v-bind="headerProps"
+            :col="col"
+            :pagination="pagination"
+          >
+            {{ col.label }}
+          </slot>
         </q-th>
         <q-th
           v-if="hasActions && (editable || canGoto)"
@@ -25,11 +32,15 @@
       </q-tr>
     </template>
     <template v-slot:body="slotProps">
-      <q-tr :props="slotProps">
+      <q-tr :props="slotProps" @click="(event: MouseEvent) => emit('row-click', event, slotProps.row)">
         <q-td
           v-for="col in slotProps.cols as (QTableColumn & ZodTableColumnProps)[]"
           :key="col.name"
           :props="slotProps"
+          :class="{
+            'zod-table-no-vertical-padding': hasNoVerticalPadding(col),
+            'zod-table-no-horizontal-padding': hasNoHorizontalPadding(col),
+          }"
         >
           <!-- Dynamic slot for custom cell rendering: body-cell-[name] -->
           <!-- boolean, dropdown and datepicker columns don't use popup edit -->
@@ -45,36 +56,46 @@
             />
             <template v-else-if="col.colEditType === 'static-enum'">
               <q-select
+                v-if="editable && col.editable"
                 :model-value="getNestedValue(slotProps.row, col.name)"
                 :options="col.options"
                 v-bind="visualProps(col)"
                 @update:model-value="
                   (val) => (setNestedValue(slotProps.row, col.name, val), props.updateRow?.(slotProps.row))
                 "
-                :disable="!col.editable"
                 :clearable="
                   col.name in (extraColumnOptions ?? {}) &&
                   extraColumnOptions?.[col.name as ColumnKeyType<T>]?.clearable
                 "
+                options-dense
+                dense
               />
+              <template v-else>
+                {{ getSelectLabel(col, slotProps.row) }}
+              </template>
             </template>
 
             <template v-else-if="'foreign-key' === col.colEditType">
               <q-select
+                v-if="editable && col.editable"
                 :model-value="getNestedValue(slotProps.row, col.name)"
                 :options="col.options"
                 v-bind="visualProps(col)"
                 @update:model-value="
                   (val) => (setNestedValue(slotProps.row, col.name, val), props.updateRow?.(slotProps.row))
                 "
-                :disable="!col.editable"
                 :option-value="col.optionValue"
                 :option-label="col.optionLabel"
                 :clearable="
                   col.name in (extraColumnOptions ?? {}) &&
                   extraColumnOptions?.[col.name as ColumnKeyType<T>]?.clearable
                 "
+                options-dense
+                dense
               />
+              <template v-else>
+                {{ getSelectLabel(col, slotProps.row) }}
+              </template>
             </template>
 
             <template v-else>
@@ -178,10 +199,13 @@
                 v-for="gotoRow in normalizedGotoRows"
                 :key="gotoRow.key"
                 :icon="gotoRow.icon"
+                :href="gotoRow.href"
+                :target="gotoRow.target"
+                :rel="gotoRow.rel"
                 size="sm"
                 dense
                 color="primary"
-                @click="(event) => gotoRow.handler(event as MouseEvent, slotProps.row)"
+                @click.stop="(event) => gotoRow.handler(event as MouseEvent, slotProps.row)"
                 :title="gotoRow.label"
               />
             </template>
@@ -191,7 +215,7 @@
               size="sm"
               dense
               color="primary"
-              @click="props.addRow?.(slotProps.row)"
+              @click.stop="props.addRow?.(slotProps.row)"
               :title="i18n.cloneButtonTitle"
             />
             <q-btn
@@ -200,7 +224,7 @@
               size="sm"
               dense
               color="negative"
-              @click="confirmDelete(slotProps.row)"
+              @click.stop="confirmDelete(slotProps.row)"
               :title="i18n.deleteButtonTitle"
             />
           </div>
@@ -238,9 +262,9 @@
               emit-value
               map-options
               multiple
-              dense
               borderless
-              optionsDense
+              options-dense
+              dense
             >
               <template v-slot:selected>
                 {{ visibleTogglesCount }} / {{ togglableColumnKeys.length }}
@@ -252,6 +276,8 @@
               :options="rowsPerPageOptions"
               v-bind="visualProps('rowsPerPage')"
               @update:model-value="(val: any) => (pagination.rowsPerPage = val)"
+              options-dense
+              dense
             />
             <span class="q-ml-md">0-0 van {{ totalRows }}</span>
           </div>
@@ -284,9 +310,9 @@
             emit-value
             map-options
             multiple
-            dense
             borderless
-            optionsDense
+            options-dense
+            dense
           >
             <template v-slot:selected>
               {{ visibleTogglesCount }} / {{ togglableColumnKeys.length }} 
@@ -298,6 +324,8 @@
             :options="rowsPerPageOptions"
             v-bind="visualProps('rowsPerPage')"
             @update:model-value="(val: any) => { pagination.rowsPerPage = val; pagination.page = 1 }"
+            options-dense
+            dense
           />
           <span class="q-ml-md">
             {{ getPaginationRange(scope.pagination.page, scope.pagination.rowsPerPage).firstRow }}-{{
@@ -390,13 +418,19 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   (e: 'update-togglable-columns', value: ColumnKey[]): void
+  (e: 'row-click', event: MouseEvent, row: Row): void
 }>()
 
 // Via v-model to optionally notify parent
 const editable = defineModel<boolean>('editable')
 
 const dateTimeStep = ref<'date' | 'time'>('date')
-const pagination = ref({ page: 1, rowsPerPage: props.initialRowsPerPage })
+const pagination = ref<{
+  page: number
+  rowsPerPage: number
+  sortBy?: string | null
+  descending?: boolean
+}>({ page: 1, rowsPerPage: props.initialRowsPerPage, sortBy: null, descending: false })
 
 const globalI18n = useZodTableI18n()
 const i18n = computed(() => ({ ...defaultI18n, ...(globalI18n?.value ?? {}), ...props.i18n }))
@@ -426,6 +460,51 @@ const getDateTimeType = (colEditType: ColEditType) => {
 }
 
 const getColumnLabel = (key: string) => (props.columnLabels as Record<string, string> | undefined)?.[key]
+
+const getSelectLabel = (col: QTableColumn & ZodTableColumnProps, row: Row) => {
+  const modelValue = getNestedValue(row, col.name)
+  if (typeof modelValue === 'undefined' || modelValue === null) {
+    return ''
+  }
+
+  const options = Array.isArray(col.options) ? col.options : []
+  const optionValueKey = col.optionValue ?? 'value'
+  const optionLabelKey = col.optionLabel ?? 'label'
+
+  const matchedOption = options.find((option) => {
+    if (option && typeof option === 'object') {
+      return (option as Record<string, unknown>)[optionValueKey] === modelValue
+    }
+    return option === modelValue
+  })
+
+  if (!matchedOption) {
+    return String(modelValue)
+  }
+
+  if (matchedOption && typeof matchedOption === 'object') {
+    const label = (matchedOption as Record<string, unknown>)[optionLabelKey]
+    return typeof label === 'undefined' || label === null ? String(modelValue) : String(label)
+  }
+
+  return String(matchedOption)
+}
+
+const hasNoVerticalPadding = (col: QTableColumn & ZodTableColumnProps) => {
+  const key = col.name as ColumnKey
+  const fromOptions = !!props.extraColumnOptions?.[key]?.noVerticalPadding
+  const forEditableSelect =
+    editable.value &&
+    !!col.editable &&
+    (col.colEditType === 'static-enum' || col.colEditType === 'foreign-key')
+
+  return fromOptions || forEditableSelect
+}
+
+const hasNoHorizontalPadding = (col: QTableColumn & ZodTableColumnProps) => {
+  const key = col.name as ColumnKey
+  return !!props.extraColumnOptions?.[key]?.noHorizontalPadding
+}
 
 const onPopupKeydown = (e: KeyboardEvent, scope: { set: () => void }) => {
   if (e.key === 'Enter') {
@@ -609,5 +688,15 @@ const visibleTogglesCount = computed(() => {
 
 .hover-opacity:hover {
   opacity: 1;
+}
+
+.zod-table-no-vertical-padding {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.zod-table-no-horizontal-padding {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
 }
 </style>

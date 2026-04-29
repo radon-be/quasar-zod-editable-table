@@ -217,6 +217,33 @@ Create dropdowns with complex objects:
 
 The table will display the `label` but store the `id` value.
 
+**Note:** When editing is disabled, enum and foreign-key columns automatically render as plain text labels instead of select dropdowns to reduce visual clutter.
+
+#### Header Templates
+
+You can override a specific header cell using a dynamic slot named `header-cell-[columnKey]`. The slot receives `col`, `pagination`, and standard header props for full customization.
+
+```vue
+<ZodTable
+  :row-model="schema"
+  :data="rows"
+>
+  <template #header-cell-name="{ col, pagination }">
+    <div class="row items-center q-gutter-xs">
+      <q-icon name="badge" size="16px" />
+      <span>{{ col.label }}</span>
+      <q-icon
+        v-if="pagination.sortBy === col.name"
+        :name="pagination.descending ? 'south' : 'north'"
+        size="12px"
+      />
+    </div>
+  </template>
+</ZodTable>
+```
+
+This follows the same dynamic naming style as `body-cell-[columnKey]`. Access `pagination.sortBy` and `pagination.descending` to show sort state indicators.
+
 ## Props
 
 | Prop                  | Type        | Description                                                                                                                                                                 |
@@ -237,10 +264,11 @@ The table will display the `label` but store the `id` value.
 | `header-class`        | `String`    | CSS class applied to table headers.                                                                                                                                        |
 | `header-style`        | `String`    | Inline styles applied to table headers.                                                                                                                                    |
 | `show-editable-toggle` | `Boolean`  | Show/hide the editable toggle in the table footer (default: `false`).                                                                                                        |
-| `extraColumnOptions`  | `Object`    | Advanced column configuration. Set `colEditType` ('date', 'time', 'datetime', 'foreign-key'), `options`, `optionLabel`, `optionValue`, and `clearable` for specific columns. |
+| `extraColumnOptions`  | `Object`    | Advanced column configuration. Set `colEditType` ('date', 'time', 'datetime', 'foreign-key'), `options`, `optionLabel`, `optionValue`, `clearable`, `noVerticalPadding`, and `noHorizontalPadding` for specific columns. |
 | `actions`             | `Array`     | Enable action buttons: `['add', 'clone', 'delete', 'goto']`.                                                                                                                |
-| `goto-row`            | `Array` \\| `Function` | Array of goto actions with `key`, `icon`, `label`, and `handler` properties, or a single handler function. Handler signature is `(event, row) => void`.                    |
-| `initial-rows-per-page` | `Number`  | Number of rows to display per page initially.                                                                                                                               || `i18n`                | `Object`    | Optional object with partial i18n label overrides. Merged with default Dutch labels. Keys: `noData`, `noResults`, `addButton`, `columnsLabel`, `rowsPerPageLabel`, `paginationSeparator`, `editableToggle`, `cloneButtonTitle`, `deleteButtonTitle`, `datePickerNow`, `datePickerClear`, `datePickerClose`, `deleteConfirmTitle`, `deleteConfirmMessage`. |
+| `goto-row`            | `Array` \\| `Function` | Array of goto actions with `key`, `icon`, `label`, optional `href`/`target`/`rel`, and `handler` properties, or a single handler function. Handler signature is `(event, row) => void`. |
+| `initial-rows-per-page` | `Number`  | Number of rows to display per page initially.                                                                                                                               |
+| `i18n`                | `Object`    | Optional object with partial i18n label overrides. Merged with default Dutch labels. Keys: `noData`, `noResults`, `addButton`, `columnsLabel`, `rowsPerPageLabel`, `paginationSeparator`, `editableToggle`, `cloneButtonTitle`, `deleteButtonTitle`, `datePickerNow`, `datePickerClear`, `datePickerClose`, `deleteConfirmTitle`, `deleteConfirmMessage`. |
 ### Goto Actions (Event-First)
 
 Goto handlers are event-first so you can inspect click modifiers like Ctrl/Cmd/Shift or middle-click:
@@ -250,8 +278,29 @@ type GotoAction<Row> = {
   key: string
   label?: string
   icon?: string
+  href?: string
+  target?: string
+  rel?: string
   handler: (event: MouseEvent | undefined, row: Row) => void
 }
+```
+
+When `href` is provided, the goto action button is rendered as a link-capable Quasar button while still executing `handler` on click.
+
+### Column Cell Padding
+
+For custom column templates, you can remove top/bottom table-cell padding per column via `extraColumnOptions`:
+
+```vue
+<ZodTable
+  :row-model="schema"
+  :extraColumnOptions="{
+    'extra.description': {
+      noVerticalPadding: true,
+      noHorizontalPadding: true,
+    },
+  }"
+/>
 ```
 
 Example:
@@ -285,6 +334,7 @@ const gotoDetails = (event: MouseEvent | undefined, row: User) => {
 
 | Event                      | Payload       | Description                                                                                                             |
 | -------------------------- | ------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `row-click`                | `(event: MouseEvent, row: Row)` | Emitted when a row is clicked. Useful for custom navigation or row selection logic. |
 | `update-togglable-columns` | `ColumnKey[]` | Emitted when the user toggles column visibility. Payload is an array of currently visible column keys. Use this to store column preferences in localStorage or other persistent storage. |
 
 ### Persisting Column Visibility

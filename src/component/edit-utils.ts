@@ -12,6 +12,10 @@ export interface ZodTableColumnProps<T = any> {
   editable?: boolean
   /** Only when editable */
   clearable?: boolean
+  /** Remove top/bottom table-cell padding for this column (useful for custom slot templates) */
+  noVerticalPadding?: boolean
+  /** Remove left/right table-cell padding for this column */
+  noHorizontalPadding?: boolean
 }
 
 export function getColumnInfo(

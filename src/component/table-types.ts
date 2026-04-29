@@ -20,6 +20,9 @@ export type GotoAction<Row> = {
   key: string
   label?: string
   icon?: string
+  href?: string
+  target?: string
+  rel?: string
   handler: (event: MouseEvent | undefined, row: Row) => void
 }
 

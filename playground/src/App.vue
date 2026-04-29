@@ -66,6 +66,9 @@
           key: 'details',
           icon: 'details',
           label: 'details',
+          href: 'https://quasar.dev',
+          target: '_blank',
+          rel: 'noopener noreferrer',
           handler: gotoRowDetails,
         },
         {
@@ -78,7 +81,13 @@
       :initial-rows-per-page="10"
       :actions="['add', 'clone', 'delete', 'goto']"
       @update-togglable-columns="(cols) => console.log('update-togglable-columns changed', cols)"
+      @row-click.stop="(event: MouseEvent, row: HealthcareProvider) => handleRowClick(event, row)"
     >
+
+        <template v-slot:['header-cell-extra.description']="{ pagination }">
+          <q-icon name="sort" size="xs" :class="['q-mr-xs', { 'flip-y': pagination.descending }]"  />
+        </template>
+
         <template v-slot:['body-cell-extra.description']="{ row }">
           <div class="text-wrap" style="max-width: 200px;">
             {{ row.extra?.description }}
@@ -92,6 +101,7 @@
             </q-popup-edit>
           </div>
         </template>
+
   </ZodTable>
   </div>
 </template>
@@ -104,13 +114,15 @@ import { useTableExampleStore } from './stores/healthcareProviderStore'
 const store = useTableExampleStore()
 
 const gotoRowDetails = (event: MouseEvent | undefined, row: HealthcareProvider) => {
-  console.log('gotoRowDetails event', event)
-  console.log('gotoRowDetails', row)
+  console.log('gotoRowDetails event', event, row)
 }
 
 const gotoRowMeasurements = (event: MouseEvent | undefined, row: HealthcareProvider) => {
-  console.log('gotoRowMeasurements event', event)
-  console.log('gotoRowMeasurements', row)
+  console.log('gotoRowMeasurements event', event, row)
+}
+
+const handleRowClick = (event: MouseEvent, row: HealthcareProvider) => {
+  console.log('Row clicked', event, row)
 }
 
 const i18n = {
@@ -130,3 +142,9 @@ const i18n = {
   deleteConfirmMessage: 'Weet je zeker dat je deze rij wilt verwijderen?',
 }
 </script>
+
+<style scoped>
+.flip-y {
+  transform: scaleY(-1);
+}
+</style>
