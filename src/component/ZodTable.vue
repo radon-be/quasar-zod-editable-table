@@ -205,7 +205,8 @@
                 size="sm"
                 dense
                 color="primary"
-                @click.stop="(event) => gotoRow.handler(event as MouseEvent, slotProps.row)"
+                @click.stop="gotoRow.handler($event, slotProps.row)"
+                @auxclick="gotoRow.handler($event, slotProps.row)"
                 :title="gotoRow.label"
               />
             </template>
@@ -403,7 +404,7 @@ const props = withDefaults(
     updateRow?: (row: Row) => void
     addRow?: (row?: Row) => void
     deleteRow?: (row: Row) => void
-    gotoRow?: ((event: MouseEvent | undefined, row: Row) => void) | GotoAction<Row> | Array<GotoAction<Row>>
+    gotoRow?: ((event: Event | undefined, row: Row) => void) | GotoAction<Row> | Array<GotoAction<Row>>
     initialRowsPerPage?: number
     actions?: Action[]
     i18n?: Partial<I18nLabels>

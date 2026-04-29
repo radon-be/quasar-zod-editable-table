@@ -23,7 +23,7 @@ export type GotoAction<Row> = {
   href?: string
   target?: string
   rel?: string
-  handler: (event: MouseEvent | undefined, row: Row) => void
+  handler: (event: Event | undefined, row: Row) => void
 }
 
 export type I18nLabels = {

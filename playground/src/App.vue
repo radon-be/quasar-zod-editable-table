@@ -81,7 +81,7 @@
       :initial-rows-per-page="10"
       :actions="['add', 'clone', 'delete', 'goto']"
       @update-togglable-columns="(cols) => console.log('update-togglable-columns changed', cols)"
-      @row-click.stop="(event: MouseEvent, row: HealthcareProvider) => handleRowClick(event, row)"
+      @row-click.stop="(event: Event, row: HealthcareProvider) => handleRowClick(event, row)"
     >
 
         <template v-slot:['header-cell-extra.description']="{ pagination }">
@@ -113,15 +113,15 @@ import { useTableExampleStore } from './stores/healthcareProviderStore'
 
 const store = useTableExampleStore()
 
-const gotoRowDetails = (event: MouseEvent | undefined, row: HealthcareProvider) => {
+const gotoRowDetails = (event: Event | undefined, row: HealthcareProvider) => {
   console.log('gotoRowDetails event', event, row)
 }
 
-const gotoRowMeasurements = (event: MouseEvent | undefined, row: HealthcareProvider) => {
+const gotoRowMeasurements = (event: Event | undefined, row: HealthcareProvider) => {
   console.log('gotoRowMeasurements event', event, row)
 }
 
-const handleRowClick = (event: MouseEvent, row: HealthcareProvider) => {
+const handleRowClick = (event: Event, row: HealthcareProvider) => {
   console.log('Row clicked', event, row)
 }
 
