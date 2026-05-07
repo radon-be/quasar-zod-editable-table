@@ -116,8 +116,7 @@ const rows = ref<User[]>([
   { id: 2, name: 'Bob', email: 'bob@example.com', role: 'user', age: 25 },
 ])
 
-function handleUpdate(updatedRow: User) {
-  // Find the row by key (id) and update it
+const handleUpdate = async (updatedRow: User) => {
   const index = rows.value.findIndex((r) => r.id === updatedRow.id)
   if (index !== -1) {
     rows.value[index] = updatedRow
@@ -127,6 +126,29 @@ function handleUpdate(updatedRow: User) {
 ```
 
 ### Advanced Features
+
+#### Pagination and Default Sort
+
+You can control pagination and sorting via `v-model:pagination`:
+
+```vue
+<ZodTable
+  :row-model="schema"
+  :data="rows"
+  v-model:pagination="pagination"
+/>
+```
+
+```ts
+const pagination = ref({
+  page: 1,
+  rowsPerPage: 10,
+  sortBy: 'name',
+  descending: false,
+})
+```
+
+If you do not bind it, the component defaults to `{ page: 1, rowsPerPage: 5, sortBy: null, descending: false }`.
 
 #### Date and Time Fields
 
@@ -251,9 +273,10 @@ This follows the same dynamic naming style as `body-cell-[columnKey]`. Access `p
 | `row-model`           | `ZodObject` | The Zod schema defining the table structure.                                                                                                                                |
 | `data`                | `Array`     | The data rows to display.                                                                                                                                                   |
 | `row-key`             | `String`    | Property name to use as a unique key for rows (required).                                                                                                                   |
-| `update-row`          | `Function`  | Callback for row updates `(row) => void`.                                                                                                                                   |
+| `update-row`          | `Function` \| `Object` | Inline update action. Accepts either a simple async function `(row) => Promise<...>` or an action object with optional `label`/`icon`/`visible`/`disabled`/`color`, and `handler(event, row) => Promise<void>`. |
 | `add-row`             | `Function`  | Callback for adding rows.                                                                                                                                                   |
-| `delete-row`          | `Function`  | Callback for deleting rows.                                                                                                                                                 |
+| `clone-row`           | `Function` \| `Object` | Clone action. Accepts either a simple async function `(row) => Promise<...>` or an action object with optional `label`/`icon`/`visible`/`disabled`/`color`, and `handler(event, row) => Promise<void>`. |
+| `delete-row`          | `Function` \| `Object` | Delete action. Accepts either a simple async function `(row) => Promise<...>` or an action object with optional `label`/`icon`/`visible`/`disabled`/`color`, optional `confirm` (`boolean` or `(row) => boolean`), and `handler(event, row) => Promise<void>`. |
 | `editable`            | `Boolean`   | Enable editing mode. Can be used as `v-model:editable` for two-way binding.                                                                                                  |
 | `editable-columns`    | `Array`     | List of keys (or `['*']`) that are editable.                                                                                                                                |
 | `hide-columns`        | `Array`     | List of column keys to hide from display.                                                                                                                                   |
@@ -266,9 +289,9 @@ This follows the same dynamic naming style as `body-cell-[columnKey]`. Access `p
 | `show-editable-toggle` | `Boolean`  | Show/hide the editable toggle in the table footer (default: `false`).                                                                                                        |
 | `extraColumnOptions`  | `Object`    | Advanced column configuration. Set `colEditType` ('date', 'time', 'datetime', 'foreign-key'), `options`, `optionLabel`, `optionValue`, `clearable`, `noVerticalPadding`, and `noHorizontalPadding` for specific columns. |
 | `actions`             | `Array`     | Enable action buttons: `['add', 'clone', 'delete', 'goto']`.                                                                                                                |
-| `goto-row`            | `Array` \\| `Function` | Array of goto actions with `key`, `icon`, `label`, optional `href`/`target`/`rel`, and `handler` properties, or a single handler function. Handler signature is `(event, row) => void`. |
-| `initial-rows-per-page` | `Number`  | Number of rows to display per page initially.                                                                                                                               |
-| `i18n`                | `Object`    | Optional object with partial i18n label overrides. Merged with default Dutch labels. Keys: `noData`, `noResults`, `addButton`, `columnsLabel`, `rowsPerPageLabel`, `paginationSeparator`, `editableToggle`, `cloneButtonTitle`, `deleteButtonTitle`, `datePickerNow`, `datePickerClear`, `datePickerClose`, `deleteConfirmTitle`, `deleteConfirmMessage`. |
+| `goto-row`            | `Array` \\| `Function` | Array of goto actions with `key`, optional `icon`/`label`/`href`/`target`/`rel`/`visible`/`disabled`/`color`, or a single handler function. Handler signature is `(event, row) => Promise<void>`. |
+| `pagination`          | `Object`    | Pagination model (`page`, `rowsPerPage`, `sortBy`, `descending`). Use with `v-model:pagination` to control the table state from the parent.                               |
+| `i18n`                | `Object`    | Optional object with partial i18n label overrides. Merged with default English labels. Keys: `noData`, `noResults`, `addButton`, `columnsLabel`, `rowsPerPageLabel`, `paginationSeparator`, `editableToggle`, `cloneButtonTitle`, `deleteButtonTitle`, `datePickerNow`, `datePickerClear`, `datePickerClose`, `deleteConfirmTitle`, `deleteConfirmMessage`. |
 ### Goto Actions (Event-First)
 
 Goto handlers are event-first so you can inspect click modifiers like Ctrl/Cmd/Shift or middle-click:
@@ -276,16 +299,40 @@ Goto handlers are event-first so you can inspect click modifiers like Ctrl/Cmd/S
 ```ts
 type GotoAction<Row> = {
   key: string
-  label?: string
-  icon?: string
-  href?: string
-  target?: string
-  rel?: string
-  handler: (event: MouseEvent | undefined, row: Row) => void
+  label?: string | ((row: Row) => string)
+  icon?: string | ((row: Row) => string)
+  href?: string | ((row: Row) => string)
+  target?: string | ((row: Row) => string)
+  rel?: string | ((row: Row) => string)
+  visible?: boolean | ((row: Row) => boolean)
+  disabled?: boolean | ((row: Row) => boolean)
+  color?: string | ((row: Row) => string)
+  handler: (event: Event, row: Row) => Promise<void>
 }
 ```
 
 When `href` is provided, the goto action button is rendered as a link-capable Quasar button while still executing `handler` on click.
+
+### Row Actions
+
+Clone, update, and delete actions can be passed either as a simple async function or as a row-aware action object. `delete-row` also accepts `confirm` on the object form.
+
+```ts
+type RowAction<Row> = {
+  label?: string | ((row: Row) => string)
+  icon?: string | ((row: Row) => string)
+  visible?: boolean | ((row: Row) => boolean)
+  disabled?: boolean | ((row: Row) => boolean)
+  color?: string | ((row: Row) => string)
+  handler: (event: Event, row: Row) => Promise<void>
+}
+
+type DeleteRowActionConfig<Row> = RowAction<Row> & {
+  confirm?: boolean | ((row: Row) => boolean)
+}
+
+type RowActionHandler<Row> = (row: Row) => Promise<...>
+```
 
 ### Column Cell Padding
 
@@ -306,17 +353,17 @@ For custom column templates, you can remove top/bottom table-cell padding per co
 Example:
 
 ```ts
-const gotoDetails = (event: MouseEvent | undefined, row: User) => {
+const gotoDetails = async (event: Event, row: User) => {
   const url = `/users/${row.id}`
 
   // Open in a new tab on Ctrl/Cmd click or middle click
-  if (event?.ctrlKey || event?.metaKey || event?.button === 1) {
+  if ((event as MouseEvent).ctrlKey || (event as MouseEvent).metaKey || (event as MouseEvent).button === 1) {
     window.open(url, '_blank', 'noopener,noreferrer')
     return
   }
 
   // Open in a new window on Shift click
-  if (event?.shiftKey) {
+  if ((event as MouseEvent).shiftKey) {
     window.open(url, '_blank', 'popup')
     return
   }

@@ -4,7 +4,8 @@
     :rows="props.data"
     :row-key="props.rowKey"
     :rows-per-page-options="rowsPerPageOptions"
-    v-model:pagination="pagination"
+    :pagination="pagination"
+    @update:pagination="onPaginationUpdate"
     v-bind="$attrs"
     :hide-bottom="false"
     :hide-pagination="false"
@@ -49,7 +50,7 @@
               v-if="col.colEditType === 'boolean'"
               :model-value="getNestedValue(slotProps.row, col.name)"
               @update:model-value="
-                (val) => (setNestedValue(slotProps.row, col.name, val), props.updateRow?.(slotProps.row))
+                (val) => (setNestedValue(slotProps.row, col.name, val), triggerUpdateRow(slotProps.row))
               "
               v-bind="visualProps(col)"
               :disable="!col.editable"
@@ -61,7 +62,7 @@
                 :options="col.options"
                 v-bind="visualProps(col)"
                 @update:model-value="
-                  (val) => (setNestedValue(slotProps.row, col.name, val), props.updateRow?.(slotProps.row))
+                  (val) => (setNestedValue(slotProps.row, col.name, val), triggerUpdateRow(slotProps.row))
                 "
                 :clearable="
                   col.name in (extraColumnOptions ?? {}) &&
@@ -82,7 +83,7 @@
                 :options="col.options"
                 v-bind="visualProps(col)"
                 @update:model-value="
-                  (val) => (setNestedValue(slotProps.row, col.name, val), props.updateRow?.(slotProps.row))
+                  (val) => (setNestedValue(slotProps.row, col.name, val), triggerUpdateRow(slotProps.row))
                 "
                 :option-value="col.optionValue"
                 :option-label="col.optionLabel"
@@ -140,7 +141,7 @@
                 >
                   <component
                     :is="getDateTimeType(col.colEditType) === 'date' ? QDate : QTime"
-                    v-model="dateOrTimeModel(slotProps.row, col.name, getDateTimeType(col.colEditType), props.updateRow).value"
+                    v-model="dateOrTimeModel(slotProps.row, col.name, getDateTimeType(col.colEditType), normalizedUpdateRow?.handler).value"
                     v-bind="getDateTimeType(col.colEditType) === 'date' ? { firstDayOfWeek: '1' } : { format24h: true }"
                     @update:model-value="col.colEditType === 'datetime' && dateTimeStep === 'date' ? dateTimeStep = 'time' : null"
                   >
@@ -171,7 +172,7 @@
                   @save="
                     (newValue: any) => (
                       setNestedValue(slotProps.row, col.name, newValue),
-                      props.updateRow?.(slotProps.row)
+                      triggerUpdateRow(slotProps.row)
                     )
                   "
                 >
@@ -195,38 +196,42 @@
         <q-td v-if="hasActions" auto-width>
           <div class="col q-gutter-xs">
             <template v-if="canGoto && normalizedGotoRows.length > 0">
-              <q-btn
-                v-for="gotoRow in normalizedGotoRows"
-                :key="gotoRow.key"
-                :icon="gotoRow.icon"
-                :href="gotoRow.href"
-                :target="gotoRow.target"
-                :rel="gotoRow.rel"
+              <template v-for="gotoRow in normalizedGotoRows" :key="gotoRow.key">
+              <q-btn               
+                :icon="toRowValue(gotoRow.icon, slotProps.row)"
+                :href="toRowValue(gotoRow.href, slotProps.row)"
+                :target="toRowValue(gotoRow.target, slotProps.row)"
+                :rel="toRowValue(gotoRow.rel, slotProps.row)"
                 size="sm"
                 dense
-                color="primary"
+                :color="toRowValue(gotoRow.color, slotProps.row, 'primary')"
                 @click.stop="gotoRow.handler($event, slotProps.row)"
                 @auxclick="gotoRow.handler($event, slotProps.row)"
-                :title="gotoRow.label"
+                :title="toRowValue(gotoRow.label, slotProps.row)"
+                :disabled="toRowValue(gotoRow.disabled, slotProps.row)"
+                :style="typeof gotoRow.visible === 'undefined' || toRowValue(gotoRow.visible, slotProps.row) ? 'visibility: visible' : 'visibility: hidden; pointer-events: none'"
               />
+              </template>
             </template>
             <q-btn
-              v-if="editable && canClone"
-              icon="content_copy"
+              :icon="toRowValue(normalizedCloneRow?.icon, slotProps.row, 'content_copy')"
               size="sm"
               dense
-              color="primary"
-              @click.stop="props.addRow?.(slotProps.row)"
-              :title="i18n.cloneButtonTitle"
+              :color="toRowValue(normalizedCloneRow?.color, slotProps.row, 'primary')"
+              :disabled="toRowValue(normalizedCloneRow?.disabled, slotProps.row)"
+              @click.stop="normalizedCloneRow?.handler($event, slotProps.row)"
+              :title="toRowValue(normalizedCloneRow?.label, slotProps.row, i18n.cloneButtonTitle)"
+              :style="editable && canClone && (typeof normalizedCloneRow?.visible === 'undefined' || toRowValue(normalizedCloneRow.visible, slotProps.row)) ? 'visibility: visible' : 'visibility: hidden; pointer-events: none'"
             />
             <q-btn
-              v-if="editable && canDelete"
-              icon="delete"
+              :icon="toRowValue(normalizedDeleteRow?.icon, slotProps.row, 'delete')"
               size="sm"
               dense
-              color="negative"
-              @click.stop="confirmDelete(slotProps.row)"
-              :title="i18n.deleteButtonTitle"
+              :color="toRowValue(normalizedDeleteRow?.color, slotProps.row, 'negative')"
+              :disabled="toRowValue(normalizedDeleteRow?.disabled, slotProps.row)"
+              @click.stop="toRowValue(normalizedDeleteRow?.confirm, slotProps.row) ? confirmDelete(slotProps.row) : triggerDeleteRow(slotProps.row)"
+              :title="toRowValue(normalizedDeleteRow?.label, slotProps.row, i18n.deleteButtonTitle)"
+              :style="canDelete && (typeof normalizedDeleteRow?.visible === 'undefined' || toRowValue(normalizedDeleteRow.visible, slotProps.row)) ? 'visibility: visible' : 'visibility: hidden; pointer-events: none'"
             />
           </div>
         </q-td>
@@ -347,15 +352,16 @@
 <script setup lang="ts" generic="T extends z.ZodRawShape">
 import { date, QDate, QTableColumn, QTime, useQuasar } from 'quasar'
 import { capitalize, intersects } from 'radashi'
-import { computed, ref } from 'vue'
+import { computed, MaybeRef, ref, unref } from 'vue'
 import z from 'zod'
 import { ColEditType, getColumnInfo, numericProps, visualProps, ZodTableColumnProps } from './edit-utils'
 import { flattenSchema, getNestedValue, setNestedValue } from './nest-utils'
 import { useDateTimeModel } from './datetime-composables'
-import { ColumnKeyType, GotoAction, I18nLabels, ZodRowType } from './table-types'
+import { CloneRowAction, ColumnKeyType, DeleteRowAction, DeleteRowActionConfig, GotoAction, I18nLabels, RowAction, UpdateRowAction, ZodRowType } from './table-types'
 import { useZodTableI18n } from '../composables/useZodTableI18n'
+import { toRowValue } from './table-utils'
 
-// TODO ! navigatie in de tabel kritisch bekijken, is dat te vereenvoudigen ?
+// TODO ! Sam pick up metadata changes automatically
 
 const defaultI18n: I18nLabels = {
   noData: 'No data available',
@@ -385,6 +391,12 @@ defineOptions({
 type ColumnKey = ColumnKeyType<T>
 type Row = ZodRowType<T>
 type Action = 'add' | 'clone' | 'delete' | 'goto'
+type PaginationModel = {
+  page: number
+  rowsPerPage: number
+  sortBy?: string | null
+  descending?: boolean
+}
 
 const props = withDefaults(
   defineProps<{
@@ -401,18 +413,17 @@ const props = withDefaults(
     hideColumns?: Array<ColumnKey>
     togglableColumns?: Array<ColumnKey | '*'>
     columnOrder?: ColumnKey[]
-    updateRow?: (row: Row) => void
+    updateRow?: UpdateRowAction<Row>
     addRow?: (row?: Row) => void
-    deleteRow?: (row: Row) => void
-    gotoRow?: ((event: Event | undefined, row: Row) => void) | GotoAction<Row> | Array<GotoAction<Row>>
-    initialRowsPerPage?: number
+    cloneRow?: CloneRowAction<Row>
+    deleteRow?: DeleteRowAction<Row>
+    gotoRow?: ((event: Event, row: Row) => Promise<void>) | GotoAction<Row> | Array<GotoAction<Row>>
     actions?: Action[]
     i18n?: Partial<I18nLabels>
   }>(),
   {
     headerClass: '',
     headerStyle: '',
-    initialRowsPerPage: 5,
     actions: () => [],
   },
 )
@@ -424,24 +435,64 @@ const emit = defineEmits<{
 
 // Via v-model to optionally notify parent
 const editable = defineModel<boolean>('editable')
+const pagination = defineModel<PaginationModel>('pagination', {
+  default: () => ({
+    page: 1,
+    rowsPerPage: 5,
+    sortBy: null,
+    descending: false,
+  }),
+})
 
 const dateTimeStep = ref<'date' | 'time'>('date')
-const pagination = ref<{
-  page: number
-  rowsPerPage: number
-  sortBy?: string | null
-  descending?: boolean
-}>({ page: 1, rowsPerPage: props.initialRowsPerPage, sortBy: null, descending: false })
+const onPaginationUpdate = (val: PaginationModel) => {
+  pagination.value = val
+}
 
 const globalI18n = useZodTableI18n()
 const i18n = computed(() => ({ ...defaultI18n, ...(globalI18n?.value ?? {}), ...props.i18n }))
+
+const normalizeRowAction = <TRow,>(
+  action: ((row: TRow) => Promise<unknown>) | RowAction<TRow> | undefined,
+): RowAction<TRow> | undefined => {
+  if (!action) return undefined
+  if (typeof action === 'function') {
+    return {
+      handler: async (_event: Event, row: TRow) => {
+        await action(row)
+      },
+    }
+  }
+  return action
+}
+
+const normalizeDeleteRowAction = (
+  action: DeleteRowAction<Row> | undefined,
+): DeleteRowActionConfig<Row> | undefined => {
+  if (!action) return undefined
+  if (typeof action === 'function') {
+    return {
+      handler: async (_event: Event, row: Row) => {
+        await action(row)
+      },
+    }
+  }
+  return action
+}
+
+const normalizedUpdateRow = computed(() => normalizeRowAction(props.updateRow))
+const normalizedCloneRow = computed(() => normalizeRowAction(props.cloneRow))
+const normalizedDeleteRow = computed(() => normalizeDeleteRowAction(props.deleteRow))
+
+const triggerUpdateRow = (row: Row) => normalizedUpdateRow.value?.handler(new Event('update'), row)
+const triggerDeleteRow = (row: Row) => normalizedDeleteRow.value?.handler(new Event('delete'), row)
 
 const totalRows = computed(() => props.data?.length || 0)
 const rowsPerPageOptions = [3, 5, 7, 10, 15, 20, 25, 50]
 const hasActions = computed(() => props.actions && props.actions.length > 0)
 const canAdd = computed(() => props.actions?.includes('add') && props.addRow)
-const canClone = computed(() => props.actions?.includes('clone') && props.addRow)
-const canDelete = computed(() => props.actions?.includes('delete') && props.deleteRow)
+const canClone = computed(() => props.actions?.includes('clone') && normalizedCloneRow.value?.handler)
+const canDelete = computed(() => props.actions?.includes('delete') && normalizedDeleteRow.value?.handler)
 const canGoto = computed(() => props.actions?.includes('goto') && props.gotoRow)
 
 const getPaginationRange = (page: number, rowsPerPage: number) => {
@@ -530,7 +581,7 @@ const confirmDelete = (row: Row) => {
     cancel: true,
     persistent: true,
   }).onOk(() => {
-    props.deleteRow?.(row)
+    triggerDeleteRow(row)
   })
 }
 
@@ -652,7 +703,8 @@ const filteredColumns = computed(() => {
 const normalizedGotoRows = computed<GotoAction<Row>[]>(() => {
   if (!props.gotoRow) return []
   if (typeof props.gotoRow === 'function') {
-    return [{ key: 'goto', handler: props.gotoRow, icon: 'details' }]
+    const fn = props.gotoRow
+    return [{ key: 'goto', handler: async (event: Event, row: Row) => fn(event, row), icon: 'details' }]
   }
   return Array.isArray(props.gotoRow) ? props.gotoRow : [props.gotoRow]
 })

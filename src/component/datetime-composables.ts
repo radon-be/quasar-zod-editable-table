@@ -6,7 +6,11 @@ import { ZodRawShape } from 'zod'
 
 /** Computed writables that convert isodatetime formats to the UX components' required structure */
 export function useDateTimeModel<T extends ZodRawShape>() {
-  const timeModel = (row: any, path: string, updateRow?: ((row: ZodRowType<T>) => void) | undefined) => {
+  const timeModel = (
+    row: any,
+    path: string,
+    updateRow?: ((event: Event, row: ZodRowType<T>) => Promise<void>) | undefined,
+  ) => {
     return computed({
       get: () => {
         const nested = getNestedValue(row, path)
@@ -24,12 +28,16 @@ export function useDateTimeModel<T extends ZodRawShape>() {
         newDate.setHours(hh, mm, 0, 0)
 
         setNestedValue(row, path, newDate.toISOString())
-        updateRow?.(row)
+        updateRow?.(new Event('update'), row)
       },
     })
   }
 
-  const dateModel = (row: any, path: string, updateRow?: ((row: ZodRowType<T>) => void) | undefined) => {
+  const dateModel = (
+    row: any,
+    path: string,
+    updateRow?: ((event: Event, row: ZodRowType<T>) => Promise<void>) | undefined,
+  ) => {
     return computed({
       get: () => {
         const nested = getNestedValue(row, path)
@@ -41,7 +49,7 @@ export function useDateTimeModel<T extends ZodRawShape>() {
         const [year, month, day] = newValue.split('/').map(Number)
         const newDate = new Date(year, month - 1, day)
         setNestedValue(row, path, newDate.toISOString())
-        updateRow?.(row)
+        updateRow?.(new Event('update'), row)
       },
     })
   }
@@ -50,7 +58,7 @@ export function useDateTimeModel<T extends ZodRawShape>() {
     row: any,
     path: string,
     dateOrTime: 'date' | 'time',
-    updateRow?: ((row: ZodRowType<T>) => void) | undefined,
+    updateRow?: ((event: Event, row: ZodRowType<T>) => Promise<void>) | undefined,
   ) => {
     if (dateOrTime === 'date') {
       return dateModel(row, path, updateRow)

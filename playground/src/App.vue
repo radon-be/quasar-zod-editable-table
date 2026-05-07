@@ -11,7 +11,7 @@
       header-style="font-size: 1rem;"
       editable
       show-editable-toggle
-      :togglable-columns="['hospital', 'office', 'extra.requestedTime']"
+      :togglable-columns="togglableColumns"
       :default-toggled-columns="['hospital']"
       :editable-columns="['*']"
       :hide-columns="['id']"
@@ -60,7 +60,14 @@
       }"
       :update-row="store.updateRow"
       :add-row="store.addRow"
-      :delete-row="store.deleteRow"
+      :delete-row="{
+        handler: async (_, row) => {
+          await store.deleteRow(row)          
+        },
+        visible: (row) => row.requestCounter > 100,
+        confirm: (row) => row.requestCounter > 150,
+      }"
+      :clone-row="store.cloneRow"
       :goto-row="[
         {
           key: 'details',
@@ -70,20 +77,21 @@
           target: '_blank',
           rel: 'noopener noreferrer',
           handler: gotoRowDetails,
+          visible: (row) => row.requestCounter > 100,
         },
         {
           key: 'measurements',
           icon: 'science',
           label: 'measurements',
           handler: gotoRowMeasurements,
+          disabled: true,
         },
       ]"
-      :initial-rows-per-page="10"
+      v-model:pagination="pagination"
       :actions="['add', 'clone', 'delete', 'goto']"
       @update-togglable-columns="(cols) => console.log('update-togglable-columns changed', cols)"
       @row-click.stop="(event: Event, row: HealthcareProvider) => handleRowClick(event, row)"
     >
-
         <template v-slot:['header-cell-extra.description']="{ pagination }">
           <q-icon name="sort" size="xs" :class="['q-mr-xs', { 'flip-y': pagination.descending }]"  />
         </template>
@@ -104,20 +112,36 @@
 
   </ZodTable>
   </div>
+  <div class="q-pa-md">
+    <label v-for="props in Object.entries(flattenSchema(HealthcareProviderSchema)).filter(([key]) => key !== 'id')" :key="props[0]" class="q-mr-md">
+      <q-checkbox v-model="togglableColumns" :val="props[0]" :label="props[0]" size="xs" />
+    </label>
+  </div>
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
 import ZodTable from '../../src/component/ZodTable.vue'
 import { HealthcareProvider, HealthcareProviderSchema } from './healthcare-provider.schema'
 import { useTableExampleStore } from './stores/healthcareProviderStore'
+import { ColumnKeyType } from '../../src/component/table-types'
+import { flattenSchema } from '../../src/component/nest-utils'
 
 const store = useTableExampleStore()
+const pagination = ref({
+  page: 1,
+  rowsPerPage: 10,
+  sortBy: 'name',
+  descending: true,
+})
 
-const gotoRowDetails = (event: Event | undefined, row: HealthcareProvider) => {
+const togglableColumns = ref<ColumnKeyType<HealthcareProvider>[]>(['hospital', 'office', 'extra.requestedTime'])
+
+const gotoRowDetails = async (event: Event, row: HealthcareProvider) => {
   console.log('gotoRowDetails event', event, row)
 }
 
-const gotoRowMeasurements = (event: Event | undefined, row: HealthcareProvider) => {
+const gotoRowMeasurements = async (event: Event, row: HealthcareProvider) => {
   console.log('gotoRowMeasurements event', event, row)
 }
 

@@ -21,7 +21,8 @@
     "build:types": "vue-tsc --declaration --emitDeclarationOnly --declarationDir dist/types -p tsconfig.json",
     "build": "npm run build:js && npm run build:types",
     "watch": "tsc --watch",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "pack:local": "npm run build && npm pack --pack-destination playground-for-package"
   },
   "repository": {
     "type": "git",

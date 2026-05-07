@@ -12,19 +12,54 @@ export type FlattenKeys<T, P extends string = ''> = {
         : `${P}${K}`
 }[keyof T & string]
 
-export type ColumnKeyType<T extends z.ZodRawShape> = FlattenKeys<T>
+type Primitive = string | number | boolean | bigint | symbol | null | undefined | Date
+
+type FlattenObjectKeys<T, P extends string = ''> = {
+  [K in keyof T & string]:
+    NonNullable<T[K]> extends Primitive
+      ? `${P}${K}`
+      : NonNullable<T[K]> extends Array<any>
+        ? `${P}${K}`
+        : NonNullable<T[K]> extends Record<string, any>
+          ? FlattenObjectKeys<NonNullable<T[K]>, `${P}${K}.`>
+          : `${P}${K}`
+}[keyof T & string]
+
+export type ColumnKeyType<T> =
+  T extends z.ZodRawShape ? FlattenKeys<T> :
+  T extends Record<string, any> ? FlattenObjectKeys<T> :
+  never
 
 export type ColumnKeyShape<T extends z.ZodObject<any>> = FlattenKeys<T['shape']>
 
+export type GotoTypeOrFunction<T, Row> = T | ((row: Row) => T)
+
 export type GotoAction<Row> = {
   key: string
-  label?: string
-  icon?: string
-  href?: string
-  target?: string
-  rel?: string
-  handler: (event: Event | undefined, row: Row) => void
+  label?: GotoTypeOrFunction<string, Row>
+  icon?: GotoTypeOrFunction<string, Row>
+  href?: GotoTypeOrFunction<string, Row>
+  target?: GotoTypeOrFunction<string, Row>
+  rel?: GotoTypeOrFunction<string, Row>
+  visible?: GotoTypeOrFunction<boolean, Row>
+  disabled?: GotoTypeOrFunction<boolean, Row>
+  color?: GotoTypeOrFunction<string, Row>
+  handler: (event: Event, row: Row) => Promise<void>
 }
+
+export type RowActionHandler<Row> = (row: Row) => Promise<Row>
+
+export type RowAction<Row> = Omit<GotoAction<Row>, 'key' | 'href' | 'target' | 'rel'>
+
+export type CloneRowAction<Row> = RowActionHandler<Row> | RowAction<Row>
+
+export type UpdateRowAction<Row> = RowActionHandler<Row> | RowAction<Row>
+
+export type DeleteRowActionConfig<Row> = RowAction<Row> & {
+  confirm?: GotoTypeOrFunction<boolean, Row>
+}
+
+export type DeleteRowAction<Row> = RowActionHandler<Row> | DeleteRowActionConfig<Row>
 
 export type I18nLabels = {
   noData: string

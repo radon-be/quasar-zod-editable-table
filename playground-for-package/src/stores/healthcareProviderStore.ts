@@ -1,12 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import {
-  createHealthcareProvider,
-  type HealthcareProvider,
-  HealthcareProviderSchema,
-} from '../healthcare-provider.schema'
 import z from 'zod'
 import dataJson from './data.json'
+import { createHealthcareProvider, type HealthcareProvider, HealthcareProviderSchema } from 'src/types/healthcare-provider.schema'
 
 export const useTableExampleStore = defineStore('tableExample', () => {
   const ProvidersSchema = z.array(HealthcareProviderSchema)
@@ -19,6 +15,7 @@ export const useTableExampleStore = defineStore('tableExample', () => {
     if (index !== -1) {
       data.value[index] = { ...updatedRow }
     }
+    await new Promise((resolve) => setTimeout(resolve, 100))
     return updatedRow
   }
 
@@ -28,6 +25,7 @@ export const useTableExampleStore = defineStore('tableExample', () => {
     newDoc.id = id
     data.value.push(newDoc)
     console.log('Added new row:', newDoc)
+    await new Promise((resolve) => setTimeout(resolve, 100))
     return newDoc
   }
 
@@ -41,6 +39,7 @@ export const useTableExampleStore = defineStore('tableExample', () => {
     if (index !== -1) {
       data.value.splice(index, 1)
     }
+    await new Promise((resolve) => setTimeout(resolve, 100))
   }
 
   return { data, updateRow, addRow, cloneRow, deleteRow }

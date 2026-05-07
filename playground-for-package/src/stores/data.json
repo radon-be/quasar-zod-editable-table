@@ -1,0 +1,215 @@
+[
+  {
+    "id": 1,
+    "firstName": "Dokter",
+    "name": "Bibber",
+    "address": "Marke",
+    "docType": "dokter",
+    "office": "A",
+    "requestCounter": 145,
+    "active": true,
+    "firstSeenAt": "2026-01-27T16:13:05.000Z",
+    "extra": {
+      "requestedAt": "2026-01-27T16:13:05.000Z",
+      "requestedTime": "2026-01-27T16:13:05.000Z",
+      "extraType": "foo",
+      "description": "Oostrozebeke"
+    }
+  },
+  {
+    "id": 2,
+    "firstName": "Louis",
+    "name": "Pasteur",
+    "address": "Kortrijk",
+    "docType": "bioloog",
+    "office": "B",
+    "hospital": 1,
+    "requestCounter": 0,
+    "active": true,
+    "firstSeenAt": "2026-01-27T16:14:05.000Z",
+    "extra": {
+      "requestedAt": "2026-01-27T16:13:05.000Z",
+      "requestedTime": "2026-01-27T17:23:05.000Z",
+      "extraType": "foo",
+      "description": "Boezinge"
+    }
+  },
+  {
+    "id": 3,
+    "firstName": "Hippocrates",
+    "name": "Kos",
+    "address": "Kortrijk",
+    "docType": "dokter",
+    "office": "C",
+    "hospital": 2,
+    "requestCounter": 10,
+    "active": false,
+    "firstSeenAt": "2026-01-27T16:15:05.000Z",
+    "extra": {
+      "requestedAt": "2026-01-27T16:13:05.000Z",
+      "requestedTime": "2026-01-25T08:45:05.000Z",
+      "extraType": "foo",
+      "description": "Ieper"
+    }
+  },
+  {
+    "id": 4,
+    "firstName": "Marie",
+    "name": "Curie",
+    "address": "Gent",
+    "docType": "bioloog",
+    "office": "A",
+    "hospital": 1,
+    "requestCounter": 52,
+    "active": true,
+    "firstSeenAt": "2026-02-01T09:00:00.000Z",
+    "extra": {
+      "requestedAt": "2026-02-01T09:00:00.000Z",
+      "requestedTime": "2026-02-01T10:30:00.000Z",
+      "extraType": "bar",
+      "description": "Waregem"
+    }
+  },
+  {
+    "id": 5,
+    "firstName": "Alexander",
+    "name": "Fleming",
+    "address": "Brugge",
+    "docType": "dokter",
+    "office": "B",
+    "hospital": 3,
+    "requestCounter": 78,
+    "active": true,
+    "firstSeenAt": "2026-02-05T11:15:00.000Z",
+    "extra": {
+      "requestedAt": "2026-02-05T11:15:00.000Z",
+      "requestedTime": "2026-02-05T12:00:00.000Z",
+      "extraType": "foo",
+      "description": "Roeselare"
+    }
+  },
+  {
+    "id": 6,
+    "firstName": "Joseph",
+    "name": "Lister",
+    "address": "Aalst",
+    "docType": "dokter",
+    "office": "C",
+    "requestCounter": 33,
+    "active": false,
+    "firstSeenAt": "2026-02-10T08:30:00.000Z",
+    "extra": {
+      "requestedAt": "2026-02-10T08:30:00.000Z",
+      "requestedTime": "2026-02-10T09:15:00.000Z",
+      "extraType": "bar",
+      "description": "Dendermonde"
+    }
+  },
+  {
+    "id": 7,
+    "firstName": "Ignaz",
+    "name": "Semmelweis",
+    "address": "Leuven",
+    "docType": "bioloog",
+    "office": "A",
+    "hospital": 2,
+    "requestCounter": 101,
+    "active": true,
+    "firstSeenAt": "2026-02-14T14:00:00.000Z",
+    "extra": {
+      "requestedAt": "2026-02-14T14:00:00.000Z",
+      "requestedTime": "2026-02-14T15:30:00.000Z",
+      "extraType": "foo",
+      "description": "Tienen"
+    }
+  },
+  {
+    "id": 8,
+    "firstName": "Edward",
+    "name": "Jenner",
+    "address": "Antwerpen",
+    "docType": "dokter",
+    "office": "B",
+    "hospital": 1,
+    "requestCounter": 200,
+    "active": true,
+    "firstSeenAt": "2026-02-18T10:00:00.000Z",
+    "extra": {
+      "requestedAt": "2026-02-18T10:00:00.000Z",
+      "requestedTime": "2026-02-18T11:00:00.000Z",
+      "extraType": "bar",
+      "description": "Mechelen"
+    }
+  },
+  {
+    "id": 9,
+    "firstName": "Robert",
+    "name": "Koch",
+    "address": "Hasselt",
+    "docType": "dokter",
+    "office": "C",
+    "hospital": 3,
+    "requestCounter": 65,
+    "active": false,
+    "firstSeenAt": "2026-02-22T13:45:00.000Z",
+    "extra": {
+      "requestedAt": "2026-02-22T13:45:00.000Z",
+      "requestedTime": "2026-02-22T14:30:00.000Z",
+      "extraType": "foo",
+      "description": "Genk"
+    }
+  },
+  {
+    "id": 10,
+    "firstName": "Florence",
+    "name": "Nightingale",
+    "address": "Liège",
+    "docType": "bioloog",
+    "office": "A",
+    "hospital": 2,
+    "requestCounter": 89,
+    "active": true,
+    "firstSeenAt": "2026-03-01T08:00:00.000Z",
+    "extra": {
+      "requestedAt": "2026-03-01T08:00:00.000Z",
+      "requestedTime": "2026-03-01T09:00:00.000Z",
+      "extraType": "bar",
+      "description": "Seraing"
+    }
+  },
+  {
+    "id": 11,
+    "firstName": "Andreas",
+    "name": "Vesalius",
+    "address": "Brussel",
+    "docType": "dokter",
+    "office": "B",
+    "requestCounter": 17,
+    "active": true,
+    "firstSeenAt": "2026-03-05T10:30:00.000Z",
+    "extra": {
+      "requestedAt": "2026-03-05T10:30:00.000Z",
+      "requestedTime": "2026-03-05T11:15:00.000Z",
+      "extraType": "foo",
+      "description": "Etterbeek"
+    }
+  },
+  {
+    "id": 12,
+    "firstName": "Christiaan",
+    "name": "Barnard",
+    "address": "Kortrijk",
+    "docType": "dokter",
+    "office": "C",
+    "hospital": 1,
+    "requestCounter": 44,
+    "active": false,
+    "firstSeenAt": "2026-03-10T09:15:00.000Z",
+    "extra": {
+      "requestedAt": "2026-03-10T09:15:00.000Z",
+      "requestedTime": "2026-03-10T10:00:00.000Z",
+      "extraType": "bar",
+      "description": "Harelbeke"
+    }
+  }
+]
