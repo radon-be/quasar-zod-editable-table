@@ -2,6 +2,8 @@ import z from 'zod'
 
 export type ZodRowType<T extends z.ZodRawShape> = z.infer<z.ZodObject<T>>
 
+type PrevDepth = [never, 0, 1, 2, 3, 4, 5, 6]
+
 export type FlattenKeys<T, P extends string = ''> = {
   [K in keyof T & string]: T[K] extends z.ZodObject<infer R>
     ? FlattenKeys<R, `${P}${K}.`>
@@ -12,27 +14,31 @@ export type FlattenKeys<T, P extends string = ''> = {
         : `${P}${K}`
 }[keyof T & string]
 
-type Primitive = string | number | boolean | bigint | symbol | null | undefined | Date
+export type Primitive = string | number | boolean | bigint | symbol | null | undefined | Date
 
-type FlattenObjectKeys<T, P extends string = ''> = {
-  [K in keyof T & string]:
-    NonNullable<T[K]> extends Primitive
-      ? `${P}${K}`
-      : NonNullable<T[K]> extends Array<any>
+export type FlattenObjectKeys<T, P extends string = '', D extends number = 4> = [D] extends [0]
+  ? never
+  : {
+      [K in keyof T & string]: NonNullable<T[K]> extends Primitive
         ? `${P}${K}`
-        : NonNullable<T[K]> extends Record<string, any>
-          ? FlattenObjectKeys<NonNullable<T[K]>, `${P}${K}.`>
-          : `${P}${K}`
-}[keyof T & string]
+        : NonNullable<T[K]> extends Array<any>
+          ? `${P}${K}`
+          : NonNullable<T[K]> extends Record<string, any>
+            ? FlattenObjectKeys<NonNullable<T[K]>, `${P}${K}.`, PrevDepth[D]>
+            : `${P}${K}`
+    }[keyof T & string]
 
-export type ColumnKeyType<T> =
-  T extends z.ZodRawShape ? FlattenKeys<T> :
-  T extends Record<string, any> ? FlattenObjectKeys<T> :
-  never
+export type ColumnKeyType<T> = T extends z.ZodRawShape
+  ? FlattenKeys<T>
+  : T extends Record<string, any>
+    ? FlattenObjectKeys<T>
+    : never
 
 export type ColumnKeyShape<T extends z.ZodObject<any>> = FlattenKeys<T['shape']>
 
 export type GotoTypeOrFunction<T, Row> = T | ((row: Row) => T)
+
+export type MaybePromise<T> = T | Promise<T>
 
 export type GotoAction<Row> = {
   key: string
@@ -44,10 +50,10 @@ export type GotoAction<Row> = {
   visible?: GotoTypeOrFunction<boolean, Row>
   disabled?: GotoTypeOrFunction<boolean, Row>
   color?: GotoTypeOrFunction<string, Row>
-  handler: (event: Event, row: Row) => Promise<void>
+  handler: (event: Event, row: Row) => MaybePromise<void>
 }
 
-export type RowActionHandler<Row> = (row: Row) => Promise<Row>
+export type RowActionHandler<Row> = (row: Row) => MaybePromise<void>
 
 export type RowAction<Row> = Omit<GotoAction<Row>, 'key' | 'href' | 'target' | 'rel'>
 

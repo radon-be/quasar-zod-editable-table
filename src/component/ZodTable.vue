@@ -9,18 +9,13 @@
     v-bind="$attrs"
     :hide-bottom="false"
     :hide-pagination="false"
-     :no-data-label="i18n.noData"
-     :no-results-label="i18n.noResults"
+    :no-data-label="i18n.noData"
+    :no-results-label="i18n.noResults"
   >
     <template v-slot:header="headerProps">
       <q-tr :props="headerProps">
         <q-th v-for="col in headerProps.cols" :key="col.name" :props="headerProps">
-          <slot
-            :name="`header-cell-${col.name}`"
-            v-bind="headerProps"
-            :col="col"
-            :pagination="pagination"
-          >
+          <slot :name="`header-cell-${col.name}`" v-bind="headerProps" :col="col" :pagination="pagination">
             {{ col.label }}
           </slot>
         </q-th>
@@ -101,13 +96,18 @@
 
             <template v-else>
               <!-- any other column types (that use popup edit) -->
-              <template v-if="col.colEditType === 'date' || col.colEditType === 'time' || col.colEditType === 'datetime'">
+              <template
+                v-if="col.colEditType === 'date' || col.colEditType === 'time' || col.colEditType === 'datetime'"
+              >
                 <div class="row justify-between items-center" style="flex-wrap: nowrap">
                   {{
                     date.formatDate(
                       getNestedValue(slotProps.row, col.name),
-                        col.colEditType === 'date' ? 'DD-MM-YYYY' : 
-                          col.colEditType === 'time' ? 'HH:mm' : 'DD-MM-YYYY HH:mm',
+                      col.colEditType === 'date'
+                        ? 'DD-MM-YYYY'
+                        : col.colEditType === 'time'
+                          ? 'HH:mm'
+                          : 'DD-MM-YYYY HH:mm',
                     )
                   }}
                   <q-icon
@@ -141,9 +141,18 @@
                 >
                   <component
                     :is="getDateTimeType(col.colEditType) === 'date' ? QDate : QTime"
-                    v-model="dateOrTimeModel(slotProps.row, col.name, getDateTimeType(col.colEditType), normalizedUpdateRow?.handler).value"
+                    v-model="
+                      dateOrTimeModel(
+                        slotProps.row,
+                        col.name,
+                        getDateTimeType(col.colEditType),
+                        normalizedUpdateRow?.handler,
+                      ).value
+                    "
                     v-bind="getDateTimeType(col.colEditType) === 'date' ? { firstDayOfWeek: '1' } : { format24h: true }"
-                    @update:model-value="col.colEditType === 'datetime' && dateTimeStep === 'date' ? dateTimeStep = 'time' : null"
+                    @update:model-value="
+                      col.colEditType === 'datetime' && dateTimeStep === 'date' ? (dateTimeStep = 'time') : null
+                    "
                   >
                     <div class="row items-center justify-between">
                       <q-btn
@@ -197,20 +206,24 @@
           <div class="col q-gutter-xs">
             <template v-if="canGoto && normalizedGotoRows.length > 0">
               <template v-for="gotoRow in normalizedGotoRows" :key="gotoRow.key">
-              <q-btn               
-                :icon="toRowValue(gotoRow.icon, slotProps.row)"
-                :href="toRowValue(gotoRow.href, slotProps.row)"
-                :target="toRowValue(gotoRow.target, slotProps.row)"
-                :rel="toRowValue(gotoRow.rel, slotProps.row)"
-                size="sm"
-                dense
-                :color="toRowValue(gotoRow.color, slotProps.row, 'primary')"
-                @click.stop="gotoRow.handler($event, slotProps.row)"
-                @auxclick="gotoRow.handler($event, slotProps.row)"
-                :title="toRowValue(gotoRow.label, slotProps.row)"
-                :disabled="toRowValue(gotoRow.disabled, slotProps.row)"
-                :style="typeof gotoRow.visible === 'undefined' || toRowValue(gotoRow.visible, slotProps.row) ? 'visibility: visible' : 'visibility: hidden; pointer-events: none'"
-              />
+                <q-btn
+                  :icon="toRowValue(gotoRow.icon, slotProps.row)"
+                  :href="toRowValue(gotoRow.href, slotProps.row)"
+                  :target="toRowValue(gotoRow.target, slotProps.row)"
+                  :rel="toRowValue(gotoRow.rel, slotProps.row)"
+                  size="sm"
+                  dense
+                  :color="toRowValue(gotoRow.color, slotProps.row, 'primary')"
+                  @click.stop="gotoRow.handler($event, slotProps.row)"
+                  @auxclick="gotoRow.handler($event, slotProps.row)"
+                  :title="toRowValue(gotoRow.label, slotProps.row)"
+                  :disabled="toRowValue(gotoRow.disabled, slotProps.row)"
+                  :style="
+                    typeof gotoRow.visible === 'undefined' || toRowValue(gotoRow.visible, slotProps.row)
+                      ? 'visibility: visible'
+                      : 'visibility: hidden; pointer-events: none'
+                  "
+                />
               </template>
             </template>
             <q-btn
@@ -221,7 +234,14 @@
               :disabled="toRowValue(normalizedCloneRow?.disabled, slotProps.row)"
               @click.stop="normalizedCloneRow?.handler($event, slotProps.row)"
               :title="toRowValue(normalizedCloneRow?.label, slotProps.row, i18n.cloneButtonTitle)"
-              :style="editable && canClone && (typeof normalizedCloneRow?.visible === 'undefined' || toRowValue(normalizedCloneRow.visible, slotProps.row)) ? 'visibility: visible' : 'visibility: hidden; pointer-events: none'"
+              :style="
+                editable &&
+                canClone &&
+                (typeof normalizedCloneRow?.visible === 'undefined' ||
+                  toRowValue(normalizedCloneRow.visible, slotProps.row))
+                  ? 'visibility: visible'
+                  : 'visibility: hidden; pointer-events: none'
+              "
             />
             <q-btn
               :icon="toRowValue(normalizedDeleteRow?.icon, slotProps.row, 'delete')"
@@ -229,9 +249,19 @@
               dense
               :color="toRowValue(normalizedDeleteRow?.color, slotProps.row, 'negative')"
               :disabled="toRowValue(normalizedDeleteRow?.disabled, slotProps.row)"
-              @click.stop="toRowValue(normalizedDeleteRow?.confirm, slotProps.row) ? confirmDelete(slotProps.row) : triggerDeleteRow(slotProps.row)"
+              @click.stop="
+                toRowValue(normalizedDeleteRow?.confirm, slotProps.row)
+                  ? confirmDelete(slotProps.row)
+                  : triggerDeleteRow(slotProps.row)
+              "
               :title="toRowValue(normalizedDeleteRow?.label, slotProps.row, i18n.deleteButtonTitle)"
-              :style="canDelete && (typeof normalizedDeleteRow?.visible === 'undefined' || toRowValue(normalizedDeleteRow.visible, slotProps.row)) ? 'visibility: visible' : 'visibility: hidden; pointer-events: none'"
+              :style="
+                canDelete &&
+                (typeof normalizedDeleteRow?.visible === 'undefined' ||
+                  toRowValue(normalizedDeleteRow.visible, slotProps.row))
+                  ? 'visibility: visible'
+                  : 'visibility: hidden; pointer-events: none'
+              "
             />
           </div>
         </q-td>
@@ -272,9 +302,7 @@
               options-dense
               dense
             >
-              <template v-slot:selected>
-                {{ visibleTogglesCount }} / {{ togglableColumnKeys.length }}
-              </template>
+              <template v-slot:selected> {{ visibleTogglesCount }} / {{ togglableColumnKeys.length }} </template>
             </q-select>
             <span class="q-mr-sm q-ml-md">{{ i18n.rowsPerPageLabel }}</span>
             <q-select
@@ -320,16 +348,19 @@
             options-dense
             dense
           >
-            <template v-slot:selected>
-              {{ visibleTogglesCount }} / {{ togglableColumnKeys.length }} 
-            </template>
+            <template v-slot:selected> {{ visibleTogglesCount }} / {{ togglableColumnKeys.length }} </template>
           </q-select>
           <span class="q-mr-sm q-ml-md">{{ i18n.rowsPerPageLabel }}</span>
           <q-select
             :model-value="scope.pagination.rowsPerPage"
             :options="rowsPerPageOptions"
             v-bind="visualProps('rowsPerPage')"
-            @update:model-value="(val: any) => { pagination.rowsPerPage = val; pagination.page = 1 }"
+            @update:model-value="
+              (val: any) => {
+                pagination.rowsPerPage = val
+                pagination.page = 1
+              }
+            "
             options-dense
             dense
           />
@@ -352,16 +383,25 @@
 <script setup lang="ts" generic="T extends z.ZodRawShape">
 import { date, QDate, QTableColumn, QTime, useQuasar } from 'quasar'
 import { capitalize, intersects } from 'radashi'
-import { computed, MaybeRef, ref, unref } from 'vue'
+import { computed, ref } from 'vue'
 import z from 'zod'
+import { useZodTableI18n } from '../composables/useZodTableI18n'
+import { useDateTimeModel } from './datetime-composables'
 import { ColEditType, getColumnInfo, numericProps, visualProps, ZodTableColumnProps } from './edit-utils'
 import { flattenSchema, getNestedValue, setNestedValue } from './nest-utils'
-import { useDateTimeModel } from './datetime-composables'
-import { CloneRowAction, ColumnKeyType, DeleteRowAction, DeleteRowActionConfig, GotoAction, I18nLabels, RowAction, UpdateRowAction, ZodRowType } from './table-types'
-import { useZodTableI18n } from '../composables/useZodTableI18n'
+import {
+  CloneRowAction,
+  ColumnKeyType,
+  DeleteRowAction,
+  DeleteRowActionConfig,
+  GotoAction,
+  I18nLabels,
+  MaybePromise,
+  RowAction,
+  UpdateRowAction,
+  ZodRowType,
+} from './table-types'
 import { toRowValue } from './table-utils'
-
-// TODO ! Sam pick up metadata changes automatically
 
 const defaultI18n: I18nLabels = {
   noData: 'No data available',
@@ -410,6 +450,7 @@ const props = withDefaults(
     showEditableToggle?: boolean
     editableColumns?: Array<ColumnKey | '*'>
     defaultToggledColumns?: Array<ColumnKey | '*'>
+    showColumns?: Array<ColumnKey>
     hideColumns?: Array<ColumnKey>
     togglableColumns?: Array<ColumnKey | '*'>
     columnOrder?: ColumnKey[]
@@ -417,7 +458,7 @@ const props = withDefaults(
     addRow?: (row?: Row) => void
     cloneRow?: CloneRowAction<Row>
     deleteRow?: DeleteRowAction<Row>
-    gotoRow?: ((event: Event, row: Row) => Promise<void>) | GotoAction<Row> | Array<GotoAction<Row>>
+    gotoRow?: ((event: Event, row: Row) => MaybePromise<void>) | GotoAction<Row> | Array<GotoAction<Row>>
     actions?: Action[]
     i18n?: Partial<I18nLabels>
   }>(),
@@ -453,28 +494,22 @@ const globalI18n = useZodTableI18n()
 const i18n = computed(() => ({ ...defaultI18n, ...(globalI18n?.value ?? {}), ...props.i18n }))
 
 const normalizeRowAction = <TRow,>(
-  action: ((row: TRow) => Promise<unknown>) | RowAction<TRow> | undefined,
+  action: ((row: TRow) => MaybePromise<void>) | RowAction<TRow> | undefined,
 ): RowAction<TRow> | undefined => {
   if (!action) return undefined
   if (typeof action === 'function') {
     return {
-      handler: async (_event: Event, row: TRow) => {
-        await action(row)
-      },
+      handler: (_event: Event, row: TRow) => action(row),
     }
   }
   return action
 }
 
-const normalizeDeleteRowAction = (
-  action: DeleteRowAction<Row> | undefined,
-): DeleteRowActionConfig<Row> | undefined => {
+const normalizeDeleteRowAction = (action: DeleteRowAction<Row> | undefined): DeleteRowActionConfig<Row> | undefined => {
   if (!action) return undefined
   if (typeof action === 'function') {
     return {
-      handler: async (_event: Event, row: Row) => {
-        await action(row)
-      },
+      handler: (_event: Event, row: Row) => action(row),
     }
   }
   return action
@@ -546,9 +581,7 @@ const hasNoVerticalPadding = (col: QTableColumn & ZodTableColumnProps) => {
   const key = col.name as ColumnKey
   const fromOptions = !!props.extraColumnOptions?.[key]?.noVerticalPadding
   const forEditableSelect =
-    editable.value &&
-    !!col.editable &&
-    (col.colEditType === 'static-enum' || col.colEditType === 'foreign-key')
+    editable.value && !!col.editable && (col.colEditType === 'static-enum' || col.colEditType === 'foreign-key')
 
   return fromOptions || forEditableSelect
 }
@@ -586,9 +619,29 @@ const confirmDelete = (row: Row) => {
 }
 
 const flattenedSchema = flattenSchema(props.rowModel)
+
+/**
+ * Filter keys based on showColumns and hideColumns props.
+ * If showColumns is provided, only those columns are shown.
+ * hideColumns further removes from the shown set.
+ */
+const getVisibleColumnKeys = (): ColumnKey[] => {
+  const allKeys = Object.keys(flattenedSchema) as ColumnKey[]
+  const show = props.showColumns
+  const hide = props.hideColumns ?? []
+
+  // If showColumns is not provided, start with all keys
+  const shownKeys: ColumnKey[] = !show ? allKeys : show.filter((k) => k in flattenedSchema)
+
+  // Filter out hideColumns
+  const hideSet = new Set(hide)
+  return shownKeys.filter((k) => !hideSet.has(k))
+}
+
 const columns = computed<(QTableColumn & ZodTableColumnProps)[]>(() => {
+  const visibleKeys = getVisibleColumnKeys()
   const t = Object.entries(flattenedSchema)
-    .filter(([key]) => !(props.hideColumns ?? []).includes(key as ColumnKey))
+    .filter(([key]) => visibleKeys.includes(key as ColumnKey))
     .map(([key, colSchema]) => {
       const keyCast = key as ColumnKey
       const meta = getColumnInfo(colSchema, key, props.extraColumnOptions?.[keyCast])
@@ -618,9 +671,7 @@ const togglableColumnKeys = computed<ColumnKey[]>(() => {
 })
 
 const togglableCols = computed(() => {
-  return baseColumns.value.filter((col) =>
-    togglableColumnKeys.value.includes(col.name as ColumnKey)
-  )
+  return baseColumns.value.filter((col) => togglableColumnKeys.value.includes(col.name as ColumnKey))
 })
 
 // const visibleColumnKeys = ref<ColumnKey[]>()
@@ -635,9 +686,7 @@ const defaultVisibleColumnKeys = computed<ColumnKey[]>(() => {
   const defaultToggles =
     !props.defaultToggledColumns || props.defaultToggledColumns.includes('*')
       ? togglableColumnKeys.value
-      : (props.defaultToggledColumns.filter((k) =>
-          togglableSet.has(k as ColumnKey),
-        ) as ColumnKey[])
+      : (props.defaultToggledColumns.filter((k) => togglableSet.has(k as ColumnKey)) as ColumnKey[])
 
   const defaultToggleSet = new Set(defaultToggles)
 
@@ -674,9 +723,7 @@ const filteredColumns = computed(() => {
     return visibleColumns
   }
 
-  const visibleByKey = new Map(
-    visibleColumns.map((col) => [col.name as ColumnKey, col])
-  )
+  const visibleByKey = new Map(visibleColumns.map((col) => [col.name as ColumnKey, col]))
   const orderedColumns: (QTableColumn & ZodTableColumnProps)[] = []
   const usedKeys = new Set<ColumnKey>()
 
@@ -688,9 +735,7 @@ const filteredColumns = computed(() => {
     }
   }
 
-  const remainingColumns = visibleColumns.filter(
-    (col) => !usedKeys.has(col.name as ColumnKey)
-  )
+  const remainingColumns = visibleColumns.filter((col) => !usedKeys.has(col.name as ColumnKey))
 
   return [...orderedColumns, ...remainingColumns]
 })
@@ -704,21 +749,18 @@ const normalizedGotoRows = computed<GotoAction<Row>[]>(() => {
   if (!props.gotoRow) return []
   if (typeof props.gotoRow === 'function') {
     const fn = props.gotoRow
-    return [{ key: 'goto', handler: async (event: Event, row: Row) => fn(event, row), icon: 'details' }]
+    return [{ key: 'goto', handler: (event: Event, row: Row) => fn(event, row), icon: 'details' }]
   }
   return Array.isArray(props.gotoRow) ? props.gotoRow : [props.gotoRow]
 })
 
-const baseColumns = computed(() =>
-  columns.value.filter(
-    (c) => !(props.hideColumns ?? []).includes(c.name as ColumnKey)
-  )
-)
+const baseColumns = computed(() => {
+  const visibleKeys = getVisibleColumnKeys()
+  return columns.value.filter((c) => visibleKeys.includes(c.name as ColumnKey))
+})
 
 const visibleToggles = computed(() => {
-  return visibleColumnKeys.value?.filter((key) =>
-    togglableColumnKeys.value.includes(key)
-  )
+  return visibleColumnKeys.value?.filter((key) => togglableColumnKeys.value.includes(key))
 })
 
 const visibleTogglesCount = computed(() => {

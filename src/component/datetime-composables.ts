@@ -1,15 +1,15 @@
-import { computed } from 'vue'
-import { getNestedValue, setNestedValue } from './nest-utils'
 import { date } from 'quasar'
-import { ZodRowType } from './table-types'
+import { computed } from 'vue'
 import { ZodRawShape } from 'zod'
+import { getNestedValue, setNestedValue } from './nest-utils'
+import { MaybePromise, ZodRowType } from './table-types'
 
 /** Computed writables that convert isodatetime formats to the UX components' required structure */
 export function useDateTimeModel<T extends ZodRawShape>() {
   const timeModel = (
     row: any,
     path: string,
-    updateRow?: ((event: Event, row: ZodRowType<T>) => Promise<void>) | undefined,
+    updateRow?: ((event: Event, row: ZodRowType<T>) => MaybePromise<void>) | undefined,
   ) => {
     return computed({
       get: () => {
@@ -36,7 +36,7 @@ export function useDateTimeModel<T extends ZodRawShape>() {
   const dateModel = (
     row: any,
     path: string,
-    updateRow?: ((event: Event, row: ZodRowType<T>) => Promise<void>) | undefined,
+    updateRow?: ((event: Event, row: ZodRowType<T>) => MaybePromise<void>) | undefined,
   ) => {
     return computed({
       get: () => {
@@ -58,7 +58,7 @@ export function useDateTimeModel<T extends ZodRawShape>() {
     row: any,
     path: string,
     dateOrTime: 'date' | 'time',
-    updateRow?: ((event: Event, row: ZodRowType<T>) => Promise<void>) | undefined,
+    updateRow?: ((event: Event, row: ZodRowType<T>) => MaybePromise<void>) | undefined,
   ) => {
     if (dateOrTime === 'date') {
       return dateModel(row, path, updateRow)

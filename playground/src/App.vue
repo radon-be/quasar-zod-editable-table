@@ -121,11 +121,11 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { flattenSchema } from '../../src/component/nest-utils'
+import { ColumnKeyType } from '../../src/component/table-types'
 import ZodTable from '../../src/component/ZodTable.vue'
 import { HealthcareProvider, HealthcareProviderSchema } from './healthcare-provider.schema'
 import { useTableExampleStore } from './stores/healthcareProviderStore'
-import { ColumnKeyType } from '../../src/component/table-types'
-import { flattenSchema } from '../../src/component/nest-utils'
 
 const store = useTableExampleStore()
 const pagination = ref({

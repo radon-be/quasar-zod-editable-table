@@ -12,12 +12,11 @@
     "test": "echo \"No test specified\" && exit 0",
     "dev": "quasar dev",
     "build": "quasar build",
-    "postinstall": "quasar prepare",
-    "install:local-package": "npm install ./radon-be-quasar-app-extension-zod-table-0.1.9.tgz"
+    "postinstall": "quasar prepare"
   },
   "dependencies": {
     "@quasar/extras": "^1.16.4",
-    "@radon-be/quasar-app-extension-zod-table": "file:radon-be-quasar-app-extension-zod-table-0.1.9.tgz",
+    "@radon-be/quasar-app-extension-zod-table": "file:radon-be-quasar-app-extension-zod-table-0.2.0.tgz",
     "pinia": "^3.0.4",
     "quasar": "^2.16.0",
     "vue": "^3.5.22",
