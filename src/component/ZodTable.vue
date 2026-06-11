@@ -309,7 +309,11 @@
               :model-value="pagination.rowsPerPage"
               :options="rowsPerPageOptions"
               v-bind="visualProps('rowsPerPage')"
-              @update:model-value="(val: any) => (pagination.rowsPerPage = val)"
+              @update:model-value="
+                (val: any) => {
+                  pagination = { ...pagination, rowsPerPage: val, page: 1 }
+                }
+              "
               options-dense
               dense
             />
@@ -357,8 +361,7 @@
             v-bind="visualProps('rowsPerPage')"
             @update:model-value="
               (val: any) => {
-                pagination.rowsPerPage = val
-                pagination.page = 1
+                pagination = { ...pagination, rowsPerPage: val, page: 1 }
               }
             "
             options-dense

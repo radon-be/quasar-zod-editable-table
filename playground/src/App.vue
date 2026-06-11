@@ -58,7 +58,7 @@
           clearable: true,
         },
       }"
-      :update-row="store.updateRow"
+      :update-row="handleRowUpdate"
       :add-row="store.addRow"
       :delete-row="{
         handler: async (_, row) => {
@@ -67,7 +67,7 @@
         visible: (row) => row.requestCounter > 100,
         confirm: (row) => row.requestCounter > 150,
       }"
-      :clone-row="store.cloneRow"
+      :clone-row="handleCloneRow"
       :goto-row="[
         {
           key: 'details',
@@ -120,7 +120,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { flattenSchema } from '../../src/component/nest-utils'
 import { ColumnKeyType } from '../../src/component/table-types'
 import ZodTable from '../../src/component/ZodTable.vue'
@@ -149,6 +149,17 @@ const handleRowClick = (event: Event, row: HealthcareProvider) => {
   console.log('Row clicked', event, row)
 }
 
+const handleRowUpdate = (row: HealthcareProvider) => {
+  console.log('Row updated', row)
+  store.updateRow(row)
+  return
+}
+
+const handleCloneRow = (row: HealthcareProvider) => {
+  console.log('Cloning row', row)
+  store.cloneRow(row)
+}
+
 const i18n = {
   noData: 'Geen data beschikbaar',
   noResults: 'Geen resultaten gevonden',
@@ -165,6 +176,13 @@ const i18n = {
   deleteConfirmTitle: 'Verwijdering bevestigen',
   deleteConfirmMessage: 'Weet je zeker dat je deze rij wilt verwijderen?',
 }
+
+watch(
+  pagination,
+  (newData) => {
+    console.log('Pagination changed', newData)
+  },
+)
 </script>
 
 <style scoped>
