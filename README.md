@@ -147,6 +147,53 @@ const pagination = ref({
 
 If you do not bind it, the component defaults to `{ page: 1, rowsPerPage: 5, sortBy: null, descending: false }`.
 
+#### Server-side Pagination
+
+For server-side paging, listen for the `request` event and return only the rows for the requested page. Set `pagination.rowsNumber` to the total number of rows after filtering so the table can calculate the page count.
+
+Use `rows-per-page-options` to control the available page sizes. Changing the page size resets the current page to page 1 and emits another request.
+
+```vue
+<ZodTable
+  :row-model="schema"
+  :data="rows"
+  :loading="loading"
+  v-model:pagination="pagination"
+  :rows-per-page-options="[10, 25, 50, 100]"
+  @request="loadRows"
+/>
+```
+
+```ts
+type Pagination = {
+  page: number
+  rowsPerPage: number
+  sortBy?: string | null
+  descending?: boolean
+  rowsNumber?: number
+}
+
+const pagination = ref<Pagination>({
+  page: 1,
+  rowsPerPage: 10,
+  sortBy: null,
+  descending: false,
+  rowsNumber: 0,
+})
+
+async function loadRows(request: { pagination: Pagination; filter?: string | object }) {
+  const result = await api.getRows(request.pagination, request.filter)
+
+  rows.value = result.rows
+  pagination.value = {
+    ...request.pagination,
+    rowsNumber: result.total,
+  }
+}
+```
+
+The `request` event is emitted when the page, page size, sort order, or filter changes. The request contains the current `pagination` model and optional `filter` value. Use `rowsPerPage: 0` when the server should return all matching rows.
+
 #### Date and Time Fields
 
 Use Zod's datetime schema to enable date/time pickers:
@@ -291,31 +338,31 @@ In the combined example, `show-columns` defines the base set (`id`, `name`, `ema
 
 ## Props
 
-| Prop | Type | Description |
-|------|------|-------------|
-| `row-model` | `ZodObject` | The Zod schema defining the table structure. |
-| `data` | `Array` | The data rows to display. |
-| `row-key` | `String` | Property name to use as a unique key for rows (required). |
-| `update-row` | `Function \| Object` | Inline update action. Accepts either a simple handler `(row) => void \| Promise<void>` or an action object with optional `label`, `icon`, `visible`, `disabled`, `color`, and `handler(event, row) => void \| Promise<void>`. |
-| `add-row` | `Function` | Callback for adding rows. |
-| `clone-row` | `Function \| Object` | Clone action. Accepts either a simple handler `(row) => void \| Promise<void>` or an action object with optional `label`, `icon`, `visible`, `disabled`, `color`, and `handler(event, row) => void \| Promise<void>`. |
-| `delete-row` | `Function \| Object` | Delete action. Accepts either a simple handler `(row) => void \| Promise<void>` or an action object with optional `label`, `icon`, `visible`, `disabled`, `color`, optional `confirm` (`boolean` or `(row) => boolean`), and `handler(event, row) => void \| Promise<void>`. |
-| `editable` | `Boolean` | Enables editing mode. Can be used as `v-model:editable` for two-way binding. |
-| `editable-columns` | `Array` | List of keys (or `['*']`) that are editable. |
-| `show-columns` | `Array` | List of column keys to display. If specified, only these columns are shown. Use together with `hide-columns` to fine-tune visibility—`show-columns` defines the base set, then `hide-columns` removes columns from it. |
-| `hide-columns` | `Array` | List of column keys to hide. Applied after `show-columns` filtering. |
-| `togglable-columns` | `Array` | List of keys (or `['*']`) that users can toggle on or off. |
-| `column-order` | `Array` | Optional ordered list of column keys. Visible columns listed here appear first; any remaining visible columns are appended afterward. |
-| `default-toggled-columns` | `Array` | Initial visible set for togglable columns. Accepts column keys or `['*']`. Non-togglable columns remain visible. |
-| `column-labels` | `Object` | Map of column keys to custom labels. Supports nested properties using dot notation (for example, `'extra.field': 'Label'`). |
-| `header-class` | `String` | CSS class applied to table headers. |
-| `header-style` | `String` | Inline styles applied to table headers. |
-| `show-editable-toggle` | `Boolean` | Shows or hides the editable toggle in the table footer (default: `false`). |
-| `extraColumnOptions` | `Object` | Advanced per-column configuration. Supports `colEditType` (`'date'`, `'time'`, `'datetime'`, `'foreign-key'`), `options`, `optionLabel`, `optionValue`, `clearable`, `noVerticalPadding`, and `noHorizontalPadding`. |
-| `actions` | `Array` | Enables built-in action buttons: `['add', 'clone', 'delete', 'goto']`. |
-| `goto-row` | `Array \| Function` | Either an array of goto actions with `key` and optional `icon`, `label`, `href`, `target`, `rel`, `visible`, `disabled`, and `color`, or a single handler function. Handler signature: `(event, row) => void \| Promise<void>`. |
-| `pagination` | `Object` | Pagination model (`page`, `rowsPerPage`, `sortBy`, `descending`). Use with `v-model:pagination` to control table state from the parent. |
-| `i18n` | `Object` | Optional object with partial i18n label overrides. Merged with the default English labels. Supported keys: `noData`, `noResults`, `addButton`, `columnsLabel`, `rowsPerPageLabel`, `paginationSeparator`, `editableToggle`, `cloneButtonTitle`, `deleteButtonTitle`, `datePickerNow`, `datePickerClear`, `datePickerClose`, `deleteConfirmTitle`, and `deleteConfirmMessage`. |
+| Prop                      | Type                 | Description                                                                                                                                                                                                                                                                                                                                                                   |
+| ------------------------- | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `row-model`               | `ZodObject`          | The Zod schema defining the table structure.                                                                                                                                                                                                                                                                                                                                  |
+| `data`                    | `Array`              | The data rows to display.                                                                                                                                                                                                                                                                                                                                                     |
+| `row-key`                 | `String`             | Property name to use as a unique key for rows (required).                                                                                                                                                                                                                                                                                                                     |
+| `update-row`              | `Function \| Object` | Inline update action. Accepts either a simple handler `(row) => void \| Promise<void>` or an action object with optional `label`, `icon`, `visible`, `disabled`, `color`, and `handler(event, row) => void \| Promise<void>`.                                                                                                                                                 |
+| `add-row`                 | `Function`           | Callback for adding rows.                                                                                                                                                                                                                                                                                                                                                     |
+| `clone-row`               | `Function \| Object` | Clone action. Accepts either a simple handler `(row) => void \| Promise<void>` or an action object with optional `label`, `icon`, `visible`, `disabled`, `color`, and `handler(event, row) => void \| Promise<void>`.                                                                                                                                                         |
+| `delete-row`              | `Function \| Object` | Delete action. Accepts either a simple handler `(row) => void \| Promise<void>` or an action object with optional `label`, `icon`, `visible`, `disabled`, `color`, optional `confirm` (`boolean` or `(row) => boolean`), and `handler(event, row) => void \| Promise<void>`.                                                                                                  |
+| `editable`                | `Boolean`            | Enables editing mode. Can be used as `v-model:editable` for two-way binding.                                                                                                                                                                                                                                                                                                  |
+| `editable-columns`        | `Array`              | List of keys (or `['*']`) that are editable.                                                                                                                                                                                                                                                                                                                                  |
+| `show-columns`            | `Array`              | List of column keys to display. If specified, only these columns are shown. Use together with `hide-columns` to fine-tune visibility—`show-columns` defines the base set, then `hide-columns` removes columns from it.                                                                                                                                                        |
+| `hide-columns`            | `Array`              | List of column keys to hide. Applied after `show-columns` filtering.                                                                                                                                                                                                                                                                                                          |
+| `togglable-columns`       | `Array`              | List of keys (or `['*']`) that users can toggle on or off.                                                                                                                                                                                                                                                                                                                    |
+| `column-order`            | `Array`              | Optional ordered list of column keys. Visible columns listed here appear first; any remaining visible columns are appended afterward.                                                                                                                                                                                                                                         |
+| `default-toggled-columns` | `Array`              | Initial visible set for togglable columns. Accepts column keys or `['*']`. Non-togglable columns remain visible.                                                                                                                                                                                                                                                              |
+| `column-labels`           | `Object`             | Map of column keys to custom labels. Supports nested properties using dot notation (for example, `'extra.field': 'Label'`).                                                                                                                                                                                                                                                   |
+| `header-class`            | `String`             | CSS class applied to table headers.                                                                                                                                                                                                                                                                                                                                           |
+| `header-style`            | `String`             | Inline styles applied to table headers.                                                                                                                                                                                                                                                                                                                                       |
+| `show-editable-toggle`    | `Boolean`            | Shows or hides the editable toggle in the table footer (default: `false`).                                                                                                                                                                                                                                                                                                    |
+| `extraColumnOptions`      | `Object`             | Advanced per-column configuration. Supports `colEditType` (`'date'`, `'time'`, `'datetime'`, `'foreign-key'`), `options`, `optionLabel`, `optionValue`, `clearable`, `noVerticalPadding`, and `noHorizontalPadding`.                                                                                                                                                          |
+| `actions`                 | `Array`              | Enables built-in action buttons: `['add', 'clone', 'delete', 'goto']`.                                                                                                                                                                                                                                                                                                        |
+| `goto-row`                | `Array \| Function`  | Either an array of goto actions with `key` and optional `icon`, `label`, `href`, `target`, `rel`, `visible`, `disabled`, and `color`, or a single handler function. Handler signature: `(event, row) => void \| Promise<void>`.                                                                                                                                               |
+| `pagination`              | `Object`             | Pagination model (`page`, `rowsPerPage`, `sortBy`, `descending`). Use with `v-model:pagination` to control table state from the parent.                                                                                                                                                                                                                                       |
+| `i18n`                    | `Object`             | Optional object with partial i18n label overrides. Merged with the default English labels. Supported keys: `noData`, `noResults`, `addButton`, `columnsLabel`, `rowsPerPageLabel`, `paginationSeparator`, `editableToggle`, `cloneButtonTitle`, `deleteButtonTitle`, `datePickerNow`, `datePickerClear`, `datePickerClose`, `deleteConfirmTitle`, and `deleteConfirmMessage`. |
 
 ### Goto Actions (Event-First)
 
