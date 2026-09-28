@@ -1,5 +1,8 @@
 <template>
   <div class="q-pa-md">
+    <div class="row justify-end q-mb-sm">
+      <q-btn flat dense icon="cloud_sync" label="Server-side demo" href="/server" />
+    </div>
     <ZodTable
       row-key="id"
       :row-model="HealthcareProviderSchema"

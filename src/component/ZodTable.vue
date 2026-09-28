@@ -3,9 +3,10 @@
     :columns="filteredColumns"
     :rows="props.data"
     :row-key="props.rowKey"
-    :rows-per-page-options="rowsPerPageOptions"
+    :rows-per-page-options="props.rowsPerPageOptions"
     :pagination="pagination"
     @update:pagination="onPaginationUpdate"
+    @request="onTableRequest"
     v-bind="$attrs"
     :hide-bottom="false"
     :hide-pagination="false"
@@ -307,13 +308,9 @@
             <span class="q-mr-sm q-ml-md">{{ i18n.rowsPerPageLabel }}</span>
             <q-select
               :model-value="pagination.rowsPerPage"
-              :options="rowsPerPageOptions"
+              :options="props.rowsPerPageOptions"
               v-bind="visualProps('rowsPerPage')"
-              @update:model-value="
-                (val: any) => {
-                  pagination = { ...pagination, rowsPerPage: val, page: 1 }
-                }
-              "
+              @update:model-value="onRowsPerPageChange"
               options-dense
               dense
             />
@@ -357,13 +354,9 @@
           <span class="q-mr-sm q-ml-md">{{ i18n.rowsPerPageLabel }}</span>
           <q-select
             :model-value="scope.pagination.rowsPerPage"
-            :options="rowsPerPageOptions"
+            :options="props.rowsPerPageOptions"
             v-bind="visualProps('rowsPerPage')"
-            @update:model-value="
-              (val: any) => {
-                pagination = { ...pagination, rowsPerPage: val, page: 1 }
-              }
-            "
+            @update:model-value="onRowsPerPageChange"
             options-dense
             dense
           />
@@ -386,7 +379,7 @@
 <script setup lang="ts" generic="T extends z.ZodRawShape">
 import { date, QDate, QTableColumn, QTime, useQuasar } from 'quasar'
 import { capitalize, intersects } from 'radashi'
-import { computed, ref } from 'vue'
+import { computed, ref, useAttrs } from 'vue'
 import z from 'zod'
 import { useZodTableI18n } from '../composables/useZodTableI18n'
 import { useDateTimeModel } from './datetime-composables'
@@ -439,6 +432,12 @@ type PaginationModel = {
   rowsPerPage: number
   sortBy?: string | null
   descending?: boolean
+  rowsNumber?: number
+}
+
+type TableRequest = {
+  pagination: PaginationModel
+  filter?: string | object
 }
 
 const props = withDefaults(
@@ -448,6 +447,7 @@ const props = withDefaults(
     extraColumnOptions?: Partial<Record<ColumnKey, ZodTableColumnProps>>
     rowKey: ColumnKey
     data: Row[]
+    rowsPerPageOptions?: number[]
     headerClass?: string
     headerStyle?: string
     showEditableToggle?: boolean
@@ -468,6 +468,7 @@ const props = withDefaults(
   {
     headerClass: '',
     headerStyle: '',
+    rowsPerPageOptions: () => [10, 15, 20, 25, 50, 100, 250, 500],
     actions: () => [],
   },
 )
@@ -475,6 +476,7 @@ const props = withDefaults(
 const emit = defineEmits<{
   (e: 'update-togglable-columns', value: ColumnKey[]): void
   (e: 'row-click', event: MouseEvent, row: Row): void
+  (e: 'request', request: TableRequest): void
 }>()
 
 // Via v-model to optionally notify parent
@@ -487,6 +489,20 @@ const pagination = defineModel<PaginationModel>('pagination', {
     descending: false,
   }),
 })
+
+const attrs = useAttrs()
+const onTableRequest = (request: TableRequest) => emit('request', request)
+
+const onRowsPerPageChange = (rowsPerPage: number) => {
+  const nextPagination = { ...pagination.value, rowsPerPage, page: 1 }
+  pagination.value = nextPagination
+  if (nextPagination.rowsNumber !== undefined) {
+    emit('request', {
+      pagination: nextPagination,
+      filter: attrs.filter as string | object | undefined,
+    })
+  }
+}
 
 const dateTimeStep = ref<'date' | 'time'>('date')
 const onPaginationUpdate = (val: PaginationModel) => {
@@ -525,8 +541,7 @@ const normalizedDeleteRow = computed(() => normalizeDeleteRowAction(props.delete
 const triggerUpdateRow = (row: Row) => normalizedUpdateRow.value?.handler(new Event('update'), row)
 const triggerDeleteRow = (row: Row) => normalizedDeleteRow.value?.handler(new Event('delete'), row)
 
-const totalRows = computed(() => props.data?.length || 0)
-const rowsPerPageOptions = [3, 5, 7, 10, 15, 20, 25, 50]
+const totalRows = computed(() => pagination.value.rowsNumber ?? props.data?.length ?? 0)
 const hasActions = computed(() => props.actions && props.actions.length > 0)
 const canAdd = computed(() => props.actions?.includes('add') && props.addRow)
 const canClone = computed(() => props.actions?.includes('clone') && normalizedCloneRow.value?.handler)

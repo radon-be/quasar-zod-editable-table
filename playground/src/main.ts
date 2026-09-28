@@ -5,8 +5,10 @@ import '@quasar/extras/material-icons/material-icons.css'
 import 'quasar/src/css/index.sass'
 
 import App from './App.vue'
+import AppServer from './AppServer.vue'
 
-const app = createApp(App)
+const RootView = window.location.pathname.replace(/\/$/, '') === '/server' ? AppServer : App
+const app = createApp(RootView)
 const pinia = createPinia()
 
 app.use(pinia)
