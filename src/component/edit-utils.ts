@@ -1,7 +1,16 @@
 import { isString } from 'radashi'
 import { z } from 'zod'
 
-export type ColEditType = 'string' | 'integer' | 'real' | 'static-enum' | 'foreign-key' | 'boolean' | 'date' | 'time' | 'datetime'
+export type ColEditType =
+  | 'string'
+  | 'integer'
+  | 'real'
+  | 'static-enum'
+  | 'foreign-key'
+  | 'boolean'
+  | 'date'
+  | 'time'
+  | 'datetime'
 
 export interface ZodTableColumnProps<T = any> {
   colEditType: ColEditType
@@ -55,7 +64,7 @@ export const numericProps = (colEditType: string, scope: { value: unknown; set: 
 })
 
 export function visualProps(col: ZodTableColumnProps | 'rowsPerPage'): Record<string, boolean | string> {
-  const keys = ['dense', 'optionsDense', 'borderless', 'emit-value', 'map-options', 'autoFocus']
+  const keys = ['dense', 'optionsDense', 'borderless', 'emit-value', 'map-options', 'autofocus']
   const matrix: Record<string, boolean[]> = {
     boolean: [true, false, false, false, false, false],
     'foreign-key': [true, true, true, true, true, false],
