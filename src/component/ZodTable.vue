@@ -431,7 +431,7 @@ import {
   useQuasar,
 } from 'quasar'
 import { capitalize, intersects } from 'radashi'
-import { computed, getCurrentInstance, ref, useAttrs } from 'vue'
+import { computed, getCurrentInstance, ref, useAttrs, watch } from 'vue'
 import z from 'zod'
 import { useZodTableI18n } from '../composables/useZodTableI18n'
 import { useDateTimeModel } from './datetime-composables'
@@ -786,6 +786,10 @@ const defaultVisibleColumnKeys = computed<ColumnKey[]>(() => {
 })
 
 const _manualVisible = ref<ColumnKey[] | null>(null)
+
+watch(() => props.defaultToggledColumns, () => {
+  _manualVisible.value = null
+})
 
 const visibleColumnKeys = computed<ColumnKey[]>({
   get(): ColumnKey[] {

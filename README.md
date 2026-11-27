@@ -58,6 +58,25 @@ The compiled JavaScript can also be imported in Node without a `.vue` loader. Th
 - In Edit mode: `Enter` key = save ; `Esc` key = cancel
 - `string` props can be edited with a dropdown box by adding an `extraColumnOptions` option
 
+### Version 0.3.0
+
+This release adds persisted-state helpers and table-state composables.
+Compared with 0.2.5, the package now ships bundled JavaScript instead of
+individual compiled source files; consumers of internal `dist` paths may need
+to use the public package exports. Import the separate stylesheet as shown
+above. Zod is now a peer dependency requiring `^4.4.3`. Column options without
+`colEditType` now retain the schema-inferred editor rather than forcing a
+foreign-key editor.
+
+When `default-toggled-columns` is replaced after a user changes column
+visibility, the table now applies the new defaults instead of keeping the
+previous manual selection.
+
+Persisted table state is opt-in: existing tables do not need the prefix
+plugin. Existing app-managed settings are left untouched and are not
+automatically migrated to the new storage format. Check consuming applications
+before upgrading; a dependency range of `^0.2.5` does not include 0.3.0.
+
 ### IntelliSense
 
 For TypeScript prop IntelliSense in Vue templates, make sure the Vue language server (Volar) is enabled in your project.
@@ -503,53 +522,136 @@ const gotoDetails = (event: Event, row: User) => {
 | `request`                  | `({ pagination, filter })`      | Emitted for server-side pagination, sorting, or filter requests. |
 | `update-togglable-columns` | `ColumnKey[]`                   | Emitted when the user toggles column visibility. Payload is an array of currently visible column keys. Use this to store column preferences in localStorage or other persistent storage. |
 
-### Persisting Column Visibility
+### Persisting Table State
 
-You can persist column visibility preferences to localStorage:
+Install one prefix plugin per app. The prefix separates apps that share an
+origin or run as microfrontends. The Quasar extension still registers
+`ZodTable`; add the prefix plugin in a boot file:
 
-````vue
+```typescript
+import { boot } from 'quasar/wrappers'
+import { createPersistedStatePlugin } from '@radon-be/quasar-app-extension-zod-table'
+
+export default boot(({ app }) => {
+  app.use(createPersistedStatePlugin({ prefix: 'materials-app' }))
+})
+```
+
+In a plain Vue/Vite app, install the same plugin in `main.ts` before mounting:
+
+```typescript
+import registerZodTable from '@radon-be/quasar-app-extension-zod-table/dist/boot/register.js'
+import { createPersistedStatePlugin } from '@radon-be/quasar-app-extension-zod-table'
+
+registerZodTable({ app })
+app.use(createPersistedStatePlugin({ prefix: 'materials-app' }))
+```
+
+Then use `useZodTableState` in the component that owns the table. `columnKeys`
+should list all current schema keys, while `togglableColumns` lists the subset
+the user can hide. This lets the composable discard saved keys removed from
+the schema without pinning a full snapshot of visible columns:
+
+```vue
 <template>
   <ZodTable
     :row-model="schema"
     :data="rows"
-    :togglable-columns="['*']"
-    :default-toggled-columns="defaultColumns"
-    v-model:editable="isEditing"
-    :show-editable-toggle="true"
-    @update-togglable-columns="handleColumnToggle"
+    :togglable-columns="togglableColumns"
+    v-bind="tableState.bindings"
   />
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { useZodTableState, type ColumnKeyType } from '@radon-be/quasar-app-extension-zod-table'
 
-const isEditing = ref(false)
-const defaultColumns = ref<string[]>(['name', 'email'])
-
-onMounted(() => {
-  // Load saved column preferences from localStorage
-  const saved = localStorage.getItem('tableColumns')
-  if (saved) {
-    defaultColumns.value = JSON.parse(saved)
-  }
-
-  // Load saved editable state
-  const wasEditing = localStorage.getItem('tableEditable')
-  if (wasEditing === 'true') {
-    isEditing.value = true
-  }
-})
-
-function handleColumnToggle(columns: string[]) {
-  // Save column visibility to localStorage
-  localStorage.setItem('tableColumns', JSON.stringify(columns))
-}
-
-// Watch editable state and save it
-watch(() => isEditing.value, (val) => {
-  localStorage.setItem('tableEditable', String(val))
-})
+const togglableColumns = ['name', 'status', 'remarks'] satisfies ColumnKeyType<User>[]
+const tableState = useZodTableState<User>(
+  'materials',
+  {
+    columns: ['name', 'status'],
+    pageSize: 25,
+    sortBy: 'name',
+    descending: false,
+  },
+  {
+    columnKeys: ['id', ...togglableColumns],
+    togglableColumns,
+  },
+)
 </script>
+```
+
+The composable supplies a `pagination` ref for `v-model:pagination`, current
+`visibleColumns`, change handlers, `bindings`, `reset()`, `status`, and
+`persistenceFailed`. Page number and `rowsNumber` are never saved, so the
+pagination ref can also be passed directly to server-side paging code.
+Use `bindings` as shown, or wire `:pagination`, `:default-toggled-columns`,
+`@update:pagination="onUpdatePagination"` and
+`@update-togglable-columns="onUpdateTogglableColumns"` explicitly. A bare
+`v-model:pagination` does not call the persistence handler.
+
+This replaces a table-specific `useTableHandlers` and its settings-store table
+entry; install the prefix plugin once per app and use a distinct key per table.
+Existing app settings are not automatically migrated.
+
+Only user changes relative to the defaults are stored: shown/hidden column
+deltas and changed page size or sort settings. Current defaults are applied
+again on every load, so a newly added default column reaches users unless they
+made a different choice. Bump the table's `revision` option to intentionally
+discard one table's saved choices after a layout change:
+
+```typescript
+const tableState = useZodTableState<User>(
+  'materials',
+  { columns: ['name', 'status'], pageSize: 25, sortBy: 'name', descending: false },
+  { revision: 2, columnKeys: ['id', 'name', 'status'], togglableColumns: ['name', 'status'] },
+)
+```
+
+The default revision is `1`. Supply both `columnKeys` and `togglableColumns`
+when users can show columns outside the defaults; without them validation is
+limited to the default columns and sort key.
+
+### Generic Persisted-State Helper
+
+The exported `usePersistedState` helper can persist any Zod-validated value.
+It uses the app prefix installed above and stores entries as
+`<prefix>:<namespace>:<key>`:
+
+```typescript
+import { z } from 'zod'
+import { usePersistedState } from '@radon-be/quasar-app-extension-zod-table'
+
+const preferences = usePersistedState({
+  namespace: 'filters',
+  key: 'materials',
+  schema: z.object({ status: z.string().optional() }),
+  version: 1,
+  defaults: { status: 'active' },
+})
+```
+
+The stored envelope contains `v` (the storage-format version), `updatedAt`,
+and `data`. Provide a step-by-step `migrate` map when changing the stored
+shape. Invalid, newer, or unmigratable values return to defaults, with a
+`status` of `reset`; missing, valid, migrated, and unavailable storage are
+reported as `missing`, `valid`, `migrated`, and `unavailable`. `reset()`
+clears the key. If browser storage is blocked or full, state remains usable in
+memory and `persistenceFailed` becomes true.
+
+The helper requires an app prefix and throws if used without one; this avoids
+silent collisions between microfrontends. Prefixes, namespaces, and keys
+must be non-empty and cannot contain `:`. `clearPersistedState()` clears
+entries for the current app, or `clearPersistedState('filters')` clears one
+namespace. `prunePersistedState({ olderThanDays: 90 })` removes only structurally
+valid envelopes owned by that app. Pruning can also be enabled once at plugin
+installation with `createPersistedStatePlugin({ prefix, prune: { olderThanDays: 90 } })`.
+
+The helper's `v` changes only when the persisted data shape changes. The
+table composable's `revision` is separate: it resets user layout choices for
+one table without changing the storage format.
+
 ## Internationalization (i18n)
 
 The ZodTable component includes default labels and messages in English. You can customize labels globally for your entire app or per-component using the `i18n` prop.

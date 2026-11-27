@@ -6,12 +6,14 @@ import 'quasar/src/css/index.sass'
 
 import App from './App.vue'
 import AppServer from './AppServer.vue'
+import { createPersistedStatePlugin } from '../../src/components'
 
 const RootView = window.location.pathname.replace(/\/$/, '') === '/server' ? AppServer : App
 const app = createApp(RootView)
 const pinia = createPinia()
 
 app.use(pinia)
+app.use(createPersistedStatePlugin({ prefix: 'zod-table-playground' }))
 app.use(Quasar, {
   plugins: {
     Dialog,

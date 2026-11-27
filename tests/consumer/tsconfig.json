@@ -11,5 +11,8 @@
       "@radon-be/quasar-app-extension-zod-table": ["dist/types/components.d.ts"]
     }
   },
-  "include": ["../../playground/src/TypedConsumer.vue"]
+  "include": [
+    "../../playground/src/TypedConsumer.vue",
+    "../../playground/src/App.vue"
+  ]
 }

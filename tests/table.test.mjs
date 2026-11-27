@@ -19,7 +19,10 @@ async function render(props = {}, slots = {}) {
 }
 
 test('compiled package and app extension boot load in Node', () => {
+  const registered = []
+  register({ app: { component: (...args) => registered.push(args) } })
   assert.equal(typeof register, 'function')
+  assert.equal(registered[0][0], 'ZodTable')
   assert.ok(ZodTable)
 })
 

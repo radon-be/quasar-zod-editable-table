@@ -5,8 +5,10 @@
     </div>
     <ZodTable
       row-key="id"
-      :row-model="HealthcareProviderSchema"
-      :data="store.data"
+      :row-model="rowModel"
+      :data="tableRows"
+      :pagination="pagination"
+      :default-toggled-columns="visibleColumns"
       :i18n
       flat
       bordered
@@ -15,7 +17,6 @@
       editable
       show-editable-toggle
       :togglable-columns="togglableColumns"
-      :default-toggled-columns="['hospital']"
       :editable-columns="['*']"
       :hide-columns="['id']"
       :column-labels="{
@@ -62,13 +63,13 @@
         },
       }"
       :update-row="handleRowUpdate"
-      :add-row="store.addRow"
+      :add-row="addRow"
       :delete-row="{
-        handler: async (_, row) => {
-          await store.deleteRow(row)          
+        handler: async (_event: Event, row: HealthcareProvider) => {
+          await deleteRow(row)
         },
-        visible: (row) => row.requestCounter > 100,
-        confirm: (row) => row.requestCounter > 150,
+        visible: (row: HealthcareProvider) => row.requestCounter > 100,
+        confirm: (row: HealthcareProvider) => row.requestCounter > 150,
       }"
       :clone-row="handleCloneRow"
       :goto-row="[
@@ -80,7 +81,7 @@
           target: '_blank',
           rel: 'noopener noreferrer',
           handler: gotoRowDetails,
-          visible: (row) => row.requestCounter > 100,
+          visible: (row: HealthcareProvider) => row.requestCounter > 100,
         },
         {
           key: 'measurements',
@@ -90,9 +91,9 @@
           disabled: true,
         },
       ]"
-      v-model:pagination="pagination"
+      @update:pagination="onUpdatePagination"
       :actions="['add', 'clone', 'delete', 'goto']"
-      @update-togglable-columns="(cols) => console.log('update-togglable-columns changed', cols)"
+      @update-togglable-columns="onUpdateTogglableColumns"
       @row-click.stop="(event: Event, row: HealthcareProvider) => handleRowClick(event, row)"
     >
         <template v-slot:['header-cell-extra.description']="{ pagination }">
@@ -106,7 +107,7 @@
               :model-value="row.extra?.description"
               auto-save
               v-slot="scope"
-              @save="(newValue) => (row.extra.description = newValue, store.updateRow(row))"
+              @save="(newValue) => (row.extra.description = newValue, updateRow(row))"
             >
               <q-input v-model="scope.value" dense autogrow />
             </q-popup-edit>
@@ -116,29 +117,58 @@
   </ZodTable>
   </div>
   <div class="q-pa-md">
-    <label v-for="props in Object.entries(flattenSchema(HealthcareProviderSchema)).filter(([key]) => key !== 'id')" :key="props[0]" class="q-mr-md">
+    <label v-for="props in Object.entries(flattenedSchema).filter(([key]) => key !== 'id')" :key="props[0]" class="q-mr-md">
       <q-checkbox v-model="togglableColumns" :val="props[0]" :label="props[0]" size="xs" />
     </label>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, shallowRef, watch } from 'vue'
 import { flattenSchema } from '../../src/component/nest-utils'
-import { ColumnKeyType } from '../../src/component/table-types'
+import type { ColumnKeyType } from '../../src/component/table-types'
+import { useZodTableState } from '../../src/composables/useZodTableState'
 import ZodTable from '../../src/component/ZodTable.vue'
 import { HealthcareProvider, HealthcareProviderSchema } from './healthcare-provider.schema'
 import { useTableExampleStore } from './stores/healthcareProviderStore'
 
 const store = useTableExampleStore()
-const pagination = ref({
-  page: 1,
-  rowsPerPage: 10,
-  sortBy: 'name',
-  descending: true,
-})
-
+const rowModel = shallowRef(HealthcareProviderSchema)
+const tableRows = store.data
+const flattenedSchema = flattenSchema(HealthcareProviderSchema)
+const { addRow, deleteRow, updateRow } = store
+const columnKeys = [
+  'id',
+  'firstName',
+  'name',
+  'address',
+  'docType',
+  'office',
+  'hospital',
+  'requestCounter',
+  'active',
+  'firstSeenAt',
+  'extra.requestedAt',
+  'extra.requestedTime',
+  'extra.extraType',
+  'extra.description',
+] satisfies ColumnKeyType<HealthcareProvider>[]
+const allTogglableColumns = columnKeys.filter((column) => column !== 'id')
 const togglableColumns = ref<ColumnKeyType<HealthcareProvider>[]>(['hospital', 'office', 'extra.requestedTime'])
+const tableState = useZodTableState<HealthcareProvider>(
+  'healthcare-providers',
+  {
+    columns: ['hospital'],
+    pageSize: 10,
+    sortBy: 'name',
+    descending: true,
+  },
+  {
+    columnKeys,
+    togglableColumns: allTogglableColumns,
+  },
+)
+const { pagination, visibleColumns, onUpdatePagination, onUpdateTogglableColumns } = tableState
 
 const gotoRowDetails = async (event: Event, row: HealthcareProvider) => {
   console.log('gotoRowDetails event', event, row)

@@ -1,6 +1,6 @@
 {
   "name": "@radon-be/quasar-app-extension-zod-table",
-  "version": "0.2.5",
+  "version": "0.3.0",
   "description": "Editable table that takes the column definitions from a zod schema",
   "author": "Stefaan Vandevelde",
   "license": "MIT",
@@ -43,7 +43,8 @@
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
     "vite": "^7.3.1",
-    "vue-tsc": "^3.3.3"
+    "vue-tsc": "^3.3.3",
+    "zod": "^4.4.3"
   },
   "files": [
     "dist",
@@ -72,12 +73,12 @@
     "timepicker"
   ],
   "dependencies": {
-    "radashi": "^12.7.1",
-    "zod": "^4.3.6"
+    "radashi": "^12.7.1"
   },
   "peerDependencies": {
     "quasar": "^2.0.0",
-    "vue": "^3.0.0"
+    "vue": "^3.0.0",
+    "zod": "^4.4.3"
   },
   "quasar": {
     "appExtension": {
