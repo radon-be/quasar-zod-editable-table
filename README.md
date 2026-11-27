@@ -58,6 +58,17 @@ The compiled JavaScript can also be imported in Node without a `.vue` loader. Th
 - In Edit mode: `Enter` key = save ; `Esc` key = cancel
 - `string` props can be edited with a dropdown box by adding an `extraColumnOptions` option
 
+### Version 0.3.1
+
+Fixes the `useZodTableState` typings for apps with `exactOptionalPropertyTypes`
+(Quasar's strict TypeScript mode). In 0.3.0 the published declarations typed
+`pagination.rowsNumber` as `number | undefined`, so passing
+`tableState.pagination` to `:pagination`, or using
+`v-bind="tableState.bindings"`, was a type error. `pagination` is now typed as
+`Ref<ZodTablePagination>` and `bindings` as the new exported
+`ZodTableStateBindings<T>`. Runtime behaviour is unchanged; a cast added as a
+workaround can be removed.
+
 ### Version 0.3.0
 
 This release adds persisted-state helpers and table-state composables.
