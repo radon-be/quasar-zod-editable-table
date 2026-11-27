@@ -675,7 +675,7 @@ export const i18nLabels = ref<Partial<I18nLabels>>({
 export default boot(({ app }) => {
   provideZodTableI18n(i18nLabels, app)
 })
-````
+```
 
 **Register the boot file** in `quasar.config.ts`:
 
