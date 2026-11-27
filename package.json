@@ -17,7 +17,7 @@
     "./dist/*": "./dist/*"
   },
   "scripts": {
-    "test": "npm run build && vue-tsc --noEmit -p tests/consumer/tsconfig.json && node --test tests/*.test.mjs",
+    "test": "npm run build && vue-tsc --noEmit -p tests/consumer/tsconfig.json && vue-tsc --noEmit -p tests/consumer-exact/tsconfig.json && node --test tests/*.test.mjs",
     "build:js": "vite build",
     "build:types": "vue-tsc --declaration --emitDeclarationOnly --declarationDir dist/types -p tsconfig.json",
     "build": "npm run build:js && npm run build:types",

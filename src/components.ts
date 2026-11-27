@@ -4,6 +4,7 @@ export { useZodTableState } from './composables/useZodTableState'
 export type {
   UseZodTableStateOptions,
   ZodTablePagination,
+  ZodTableStateBindings,
   ZodTablePaginationUpdate,
   ZodTableStateDefaults,
 } from './composables/useZodTableState'

@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "exactOptionalPropertyTypes": true,
+    "skipLibCheck": true,
+    "lib": ["esnext", "dom"],
+    "baseUrl": "../..",
+    "paths": {
+      "@radon-be/quasar-app-extension-zod-table": ["dist/types/components.d.ts"]
+    }
+  },
+  "include": ["ExactOptionalConsumer.vue"]
+}

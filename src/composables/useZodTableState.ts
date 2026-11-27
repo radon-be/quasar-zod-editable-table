@@ -1,4 +1,4 @@
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, reactive, ref, watch, type Ref } from 'vue'
 import { z } from 'zod'
 import { flattenSchema } from '../component/nest-utils'
 import type { ColumnKeyType } from '../component/table-types'
@@ -31,6 +31,18 @@ export type UseZodTableStateOptions<T> = {
   revision?: number
   /** Columns the user may toggle. Defaults to every column of the row schema. */
   togglableColumns?: readonly ColumnKeyType<T>[]
+}
+
+/**
+ * Props and listeners for `v-bind` on ZodTable. Declared explicitly (like the pagination ref's type) so the
+ * published declarations name ZodTablePagination instead of an inlined copy that widens `rowsNumber` to
+ * `number | undefined`, which consumers with `exactOptionalPropertyTypes` cannot pass to ZodTable.
+ */
+export type ZodTableStateBindings<T> = {
+  readonly pagination: ZodTablePagination
+  readonly defaultToggledColumns: ColumnKeyType<T>[]
+  'onUpdate:pagination': (next: ZodTablePaginationUpdate) => void
+  onUpdateTogglableColumns: (visible: ColumnKeyType<T>[]) => void
 }
 
 type StoredTableChanges = {
@@ -148,7 +160,7 @@ export function useZodTableState<T extends z.ZodRawShape>(
     ]
   })
 
-  const pagination = ref<ZodTablePagination>({
+  const pagination: Ref<ZodTablePagination> = ref<ZodTablePagination>({
     page: 1,
     rowsPerPage: saved.value.value.pageSize ?? currentDefaults.pageSize,
     sortBy:
@@ -223,12 +235,13 @@ export function useZodTableState<T extends z.ZodRawShape>(
     saved.value.value = changes
   }
 
+  // reactive() unwraps generic types TypeScript cannot match to ColumnKeyType<T>; the getters return exactly these.
   const bindings = reactive({
     get pagination() { return pagination.value },
     get defaultToggledColumns() { return visibleColumns.value },
     'onUpdate:pagination': onUpdatePagination,
     onUpdateTogglableColumns,
-  })
+  }) as ZodTableStateBindings<T>
 
   const reset = () => {
     saved.reset()
