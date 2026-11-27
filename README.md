@@ -547,10 +547,12 @@ registerZodTable({ app })
 app.use(createPersistedStatePlugin({ prefix: 'materials-app' }))
 ```
 
-Then use `useZodTableState` in the component that owns the table. `columnKeys`
-should list all current schema keys, while `togglableColumns` lists the subset
-the user can hide. This lets the composable discard saved keys removed from
-the schema without pinning a full snapshot of visible columns:
+Then use `useZodTableState` in the component that owns the table. Pass the same
+row schema you give `ZodTable`: the composable derives the valid column keys
+from it, so saved choices for columns that were removed from the schema are
+discarded, while choices for any existing column are kept. `togglableColumns`
+optionally narrows which columns the user may show or hide (default: all
+schema columns):
 
 ```vue
 <template>
@@ -565,19 +567,17 @@ the schema without pinning a full snapshot of visible columns:
 <script setup lang="ts">
 import { useZodTableState, type ColumnKeyType } from '@radon-be/quasar-app-extension-zod-table'
 
-const togglableColumns = ['name', 'status', 'remarks'] satisfies ColumnKeyType<User>[]
-const tableState = useZodTableState<User>(
+const togglableColumns = ['name', 'status', 'remarks'] satisfies ColumnKeyType<typeof schema.shape>[]
+const tableState = useZodTableState(
   'materials',
+  schema,
   {
     columns: ['name', 'status'],
     pageSize: 25,
     sortBy: 'name',
     descending: false,
   },
-  {
-    columnKeys: ['id', ...togglableColumns],
-    togglableColumns,
-  },
+  { togglableColumns },
 )
 </script>
 ```
@@ -602,16 +602,15 @@ made a different choice. Bump the table's `revision` option to intentionally
 discard one table's saved choices after a layout change:
 
 ```typescript
-const tableState = useZodTableState<User>(
+const tableState = useZodTableState(
   'materials',
+  schema,
   { columns: ['name', 'status'], pageSize: 25, sortBy: 'name', descending: false },
-  { revision: 2, columnKeys: ['id', 'name', 'status'], togglableColumns: ['name', 'status'] },
+  { revision: 2 },
 )
 ```
 
-The default revision is `1`. Supply both `columnKeys` and `togglableColumns`
-when users can show columns outside the defaults; without them validation is
-limited to the default columns and sort key.
+The default revision is `1`.
 
 ### Generic Persisted-State Helper
 

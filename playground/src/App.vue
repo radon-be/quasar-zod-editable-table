@@ -155,8 +155,9 @@ const columnKeys = [
 ] satisfies ColumnKeyType<HealthcareProvider>[]
 const allTogglableColumns = columnKeys.filter((column) => column !== 'id')
 const togglableColumns = ref<ColumnKeyType<HealthcareProvider>[]>(['hospital', 'office', 'extra.requestedTime'])
-const tableState = useZodTableState<HealthcareProvider>(
+const tableState = useZodTableState(
   'healthcare-providers',
+  HealthcareProviderSchema,
   {
     columns: ['hospital'],
     pageSize: 10,
@@ -164,7 +165,6 @@ const tableState = useZodTableState<HealthcareProvider>(
     descending: true,
   },
   {
-    columnKeys,
     togglableColumns: allTogglableColumns,
   },
 )

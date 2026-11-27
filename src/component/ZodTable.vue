@@ -787,9 +787,14 @@ const defaultVisibleColumnKeys = computed<ColumnKey[]>(() => {
 
 const _manualVisible = ref<ColumnKey[] | null>(null)
 
-watch(() => props.defaultToggledColumns, () => {
-  _manualVisible.value = null
-})
+// Compare by content: an inline array literal is a new object on every parent render,
+// and that alone must not discard the user's manual column choice.
+watch(
+  () => JSON.stringify(props.defaultToggledColumns ?? null),
+  () => {
+    _manualVisible.value = null
+  },
+)
 
 const visibleColumnKeys = computed<ColumnKey[]>({
   get(): ColumnKey[] {

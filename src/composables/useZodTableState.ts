@@ -1,5 +1,6 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { z } from 'zod'
+import { flattenSchema } from '../component/nest-utils'
 import type { ColumnKeyType } from '../component/table-types'
 import { usePersistedState } from '../persisted-state'
 
@@ -28,7 +29,7 @@ export type ZodTableStateDefaults<T> = {
 
 export type UseZodTableStateOptions<T> = {
   revision?: number
-  columnKeys?: readonly ColumnKeyType<T>[]
+  /** Columns the user may toggle. Defaults to every column of the row schema. */
   togglableColumns?: readonly ColumnKeyType<T>[]
 }
 
@@ -54,8 +55,9 @@ function isColumnKey<T extends string>(value: string, keys: ReadonlySet<T>): val
   return keys.has(value as T)
 }
 
-export function useZodTableState<T>(
+export function useZodTableState<T extends z.ZodRawShape>(
   key: string,
+  rowModel: z.ZodObject<T>,
   defaults: ZodTableStateDefaults<T>,
   options: UseZodTableStateOptions<T> = {},
 ) {
@@ -64,11 +66,11 @@ export function useZodTableState<T>(
     throw new Error('Zod table state revision must be a positive integer')
   }
 
-  const validColumnKeys = new Set<ColumnKeyType<T>>(
-    options.columnKeys ?? [...defaults.columns, ...(defaults.sortBy === null ? [] : [defaults.sortBy])],
-  )
+  // Valid columns always come from the row schema (the same keys ZodTable renders),
+  // so saved choices for non-default columns are never dropped by mistake.
+  const validColumnKeys = new Set(Object.keys(flattenSchema(rowModel)) as ColumnKeyType<T>[])
   const validTogglableColumns = new Set<ColumnKeyType<T>>(
-    (options.togglableColumns ?? defaults.columns).filter((column) => validColumnKeys.has(column)),
+    (options.togglableColumns ?? [...validColumnKeys]).filter((column) => validColumnKeys.has(column)),
   )
   const defaultColumns = defaults.columns.filter((column) => validTogglableColumns.has(column))
   const defaultSortBy =

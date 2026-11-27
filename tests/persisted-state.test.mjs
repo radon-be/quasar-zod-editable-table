@@ -276,10 +276,11 @@ const tableDefaults = (columns, pageSize = 25) => ({
   descending: false,
 })
 
-function tableState(prefix, defaults, options = {}) {
+const schemaFor = (keys) => z.object(Object.fromEntries(keys.map((key) => [key, z.string()])))
+
+function tableState(prefix, defaults, { schemaKeys = ['id', 'name', 'status', 'remarks', 'date'], ...options } = {}) {
   return createContext(prefix, () =>
-    useZodTableState('materials', defaults, {
-      columnKeys: ['id', 'name', 'status', 'remarks', 'date'],
+    useZodTableState('materials', schemaFor(schemaKeys), defaults, {
       togglableColumns: ['name', 'status', 'remarks', 'date'],
       ...options,
     }),
@@ -307,7 +308,7 @@ test('table state applies current defaults and preserves only user deltas', () =
   const updatedDefaults = tableState(
     'test-table-customized',
     { columns: ['status', 'date'], pageSize: 25, sortBy: 'name', descending: false },
-    { columnKeys: ['id', 'name', 'status', 'remarks', 'date'], togglableColumns: ['name', 'status', 'remarks', 'date'] },
+    { schemaKeys: ['id', 'name', 'status', 'remarks', 'date'], togglableColumns: ['name', 'status', 'remarks', 'date'] },
   )
   assert.deepEqual(updatedDefaults.visibleColumns.value, ['date', 'remarks'])
   assert.equal(updatedDefaults.pagination.value.rowsPerPage, 50)
@@ -317,10 +318,29 @@ test('table state applies current defaults and preserves only user deltas', () =
   const removedColumns = tableState(
     'test-table-customized',
     { columns: ['status', 'date'], pageSize: 25, sortBy: 'name', descending: false },
-    { columnKeys: ['id', 'status', 'date'], togglableColumns: ['status', 'date'] },
+    { schemaKeys: ['id', 'status', 'date'], togglableColumns: ['status', 'date'] },
   )
   assert.deepEqual(removedColumns.visibleColumns.value, ['date'])
   assert.equal(removedColumns.pagination.value.sortBy, 'status')
+})
+
+test('table state keeps choices for any schema column without extra options', () => {
+  const run = () =>
+    createContext('test-table-schema-keys', () =>
+      useZodTableState(
+        'materials',
+        z.object({ id: z.string(), name: z.string(), remarks: z.string(), extra: z.object({ note: z.string() }) }),
+        { columns: ['name'], pageSize: 25, sortBy: 'name', descending: false },
+      ),
+    )
+  const state = run()
+  state.onUpdateTogglableColumns(['name', 'remarks', 'extra.note'])
+  state.onUpdatePagination({ ...state.pagination.value, sortBy: 'extra.note', descending: true })
+
+  const reloaded = run()
+  assert.deepEqual(reloaded.visibleColumns.value, ['name', 'remarks', 'extra.note'])
+  assert.equal(reloaded.pagination.value.sortBy, 'extra.note')
+  assert.equal(reloaded.pagination.value.descending, true)
 })
 
 test('table state drops saved changes when they match new defaults', () => {
@@ -336,7 +356,7 @@ test('table state drops saved changes when they match new defaults', () => {
   const updated = tableState(
     'test-table-normalize',
     { columns: ['status'], pageSize: 50, sortBy: 'status', descending: true },
-    { columnKeys: ['id', 'name', 'status'], togglableColumns: ['name', 'status'] },
+    { schemaKeys: ['id', 'name', 'status'], togglableColumns: ['name', 'status'] },
   )
   assert.deepEqual(updated.visibleColumns.value, ['status'])
   assert.equal(updated.pagination.value.rowsPerPage, 50)
@@ -357,7 +377,7 @@ test('table state removes stale columns and sort keys from stored changes', () =
   const state = tableState(
     'test-table-stale',
     tableDefaults(['name', 'status']),
-    { columnKeys: ['id', 'name', 'status'], togglableColumns: ['name', 'status', 'removed'] },
+    { schemaKeys: ['id', 'name', 'status'], togglableColumns: ['name', 'status', 'removed'] },
   )
 
   assert.deepEqual(state.visibleColumns.value, ['name'])
@@ -373,7 +393,7 @@ test('table revision changes reset saved state and page state is not persisted',
   const nextRevision = tableState(
     'test-table-revision',
     tableDefaults(['name']),
-    { revision: 2, columnKeys: ['id', 'name', 'status'], togglableColumns: ['name', 'status'] },
+    { revision: 2, schemaKeys: ['id', 'name', 'status'], togglableColumns: ['name', 'status'] },
   )
   assert.deepEqual(nextRevision.visibleColumns.value, ['name'])
   assert.equal(nextRevision.pagination.value.page, 1)
