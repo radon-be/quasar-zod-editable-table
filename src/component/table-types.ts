@@ -77,6 +77,7 @@ export type I18nLabels = {
   editableToggle: string
   cloneButtonTitle: string
   deleteButtonTitle: string
+  gotoButtonTitle?: string
   datePickerNow: string
   datePickerClear: string
   datePickerClose: string

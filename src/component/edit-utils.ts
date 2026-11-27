@@ -14,6 +14,7 @@ export type ColEditType =
 
 export interface ZodTableColumnProps<T = any> {
   colEditType: ColEditType
+  sortable?: boolean
   options?: T[]
   optionLabel?: string
   optionValue?: string
@@ -27,14 +28,18 @@ export interface ZodTableColumnProps<T = any> {
   noHorizontalPadding?: boolean
 }
 
+export type ZodTableColumnOptions<T = any> = Omit<ZodTableColumnProps<T>, 'colEditType'> & {
+  colEditType?: ColEditType
+}
+
 export function getColumnInfo(
   colSchema: z.ZodType,
   key: string,
-  columnOptions: ZodTableColumnProps | undefined,
+  columnOptions: ZodTableColumnOptions | undefined,
 ): ZodTableColumnProps {
   const json = colSchema.toJSONSchema()
 
-  const colEditType: ColEditType = !!columnOptions
+  const colEditType: ColEditType = columnOptions?.colEditType ?? (columnOptions?.options
     ? 'foreign-key'
     : colSchema instanceof z.ZodDate || json.format === 'date' || json.format === 'date-time'
       ? 'date'
@@ -42,10 +47,12 @@ export function getColumnInfo(
         ? 'static-enum'
         : Array.isArray(json?.type)
           ? json.type.find((t: string) => t !== 'null')
-          : json?.type
-  if (colEditType === 'foreign-key') return { colEditType, ...columnOptions }
-  if (colEditType === 'static-enum') return { colEditType, options: json.enum }
-  return { colEditType, options: [] }
+          : json?.type)
+  return {
+    options: colEditType === 'static-enum' ? json.enum : [],
+    ...columnOptions,
+    colEditType,
+  }
 }
 
 export const parseNumericValue = (colEditType: string, value: string | number | null) =>

@@ -16,6 +16,14 @@ Or install the package directly via npm:
 npm install @radon-be/quasar-app-extension-zod-table
 ```
 
+Import the component stylesheet once in your application entry point or Quasar boot file:
+
+```ts
+import '@radon-be/quasar-app-extension-zod-table/style.css'
+```
+
+The compiled JavaScript can also be imported in Node without a `.vue` loader. The stylesheet is separate so Node and SSR tools do not need a CSS loader.
+
 ### Requirements
 
 - **Quasar Dialog Plugin**: Required for delete row confirmation dialogs. Make sure the Dialog plugin is installed in your Quasar config (`quasar.config.ts`).
@@ -194,6 +202,41 @@ async function loadRows(request: { pagination: Pagination; filter?: string | obj
 
 The `request` event is emitted when the page, page size, sort order, or filter changes. The request contains the current `pagination` model and optional `filter` value. Use `rowsPerPage: 0` when the server should return all matching rows.
 
+Disable sorting for columns that the server cannot sort. Other columns remain sortable by default:
+
+```vue
+<ZodTable
+  row-key="id"
+  :row-model="schema"
+  :data="rows"
+  :extra-column-options="{ description: { sortable: false } }"
+/>
+```
+
+`colEditType` is optional: settings such as `sortable` and padding do not change the inferred editor. Providing `options` without `colEditType` still selects the foreign-key editor.
+
+#### Expandable Rows
+
+Use the `expand` slot for details and a cell slot to toggle the row. Expansion is keyed by `row-key`; the table does not expand on row click automatically. The cell and expansion slots receive `row`, `expanded`, and `toggleExpand`, in addition to the QTable body slot properties. QTable's `expanded` / `v-model:expanded` can also control the expanded row keys.
+
+```vue
+<ZodTable row-key="id" :row-model="schema" :data="rows">
+  <template #body-cell-name="{ row, expanded, toggleExpand }">
+    <q-btn
+      flat dense
+      :icon="expanded ? 'expand_less' : 'expand_more'"
+      :aria-label="expanded ? 'Hide details' : 'Show details'"
+      :aria-expanded="expanded"
+      @click.stop="toggleExpand"
+    />
+    {{ row.name }}
+  </template>
+  <template #expand="{ row }">
+    Details for {{ row.name }}
+  </template>
+</ZodTable>
+```
+
 #### Date and Time Fields
 
 Use Zod's datetime schema to enable date/time pickers:
@@ -358,11 +401,14 @@ In the combined example, `show-columns` defines the base set (`id`, `name`, `ema
 | `header-class`            | `String`             | CSS class applied to table headers.                                                                                                                                                                                                                                                                                                                                           |
 | `header-style`            | `String`             | Inline styles applied to table headers.                                                                                                                                                                                                                                                                                                                                       |
 | `show-editable-toggle`    | `Boolean`            | Shows or hides the editable toggle in the table footer (default: `false`).                                                                                                                                                                                                                                                                                                    |
-| `extraColumnOptions`      | `Object`             | Advanced per-column configuration. Supports `colEditType` (`'date'`, `'time'`, `'datetime'`, `'foreign-key'`), `options`, `optionLabel`, `optionValue`, `clearable`, `noVerticalPadding`, and `noHorizontalPadding`.                                                                                                                                                          |
+| `extraColumnOptions`      | `Object`             | Per-column settings including optional `colEditType`, `sortable`, `options`, `optionLabel`, `optionValue`, `clearable`, `noVerticalPadding`, and `noHorizontalPadding`. |
 | `actions`                 | `Array`              | Enables built-in action buttons: `['add', 'clone', 'delete', 'goto']`.                                                                                                                                                                                                                                                                                                        |
+| `hide-bottom`             | `Boolean`            | Hides QTable's bottom area, including its empty-data message (default: `false`). |
+| `row-action-size`         | `String`             | Quasar button size for goto, clone, and delete actions (default: `sm`). |
+| `row-action-dense`        | `Boolean`            | Dense goto, clone, and delete buttons (default: `true`). |
 | `goto-row`                | `Array \| Function`  | Either an array of goto actions with `key` and optional `icon`, `label`, `href`, `target`, `rel`, `visible`, `disabled`, and `color`, or a single handler function. Handler signature: `(event, row) => void \| Promise<void>`.                                                                                                                                               |
 | `pagination`              | `Object`             | Pagination model (`page`, `rowsPerPage`, `sortBy`, `descending`). Use with `v-model:pagination` to control table state from the parent.                                                                                                                                                                                                                                       |
-| `i18n`                    | `Object`             | Optional object with partial i18n label overrides. Merged with the default English labels. Supported keys: `noData`, `noResults`, `addButton`, `columnsLabel`, `rowsPerPageLabel`, `paginationSeparator`, `editableToggle`, `cloneButtonTitle`, `deleteButtonTitle`, `datePickerNow`, `datePickerClear`, `datePickerClose`, `deleteConfirmTitle`, and `deleteConfirmMessage`. |
+| `i18n`                    | `Object`             | Partial per-table label overrides, including `noData` and `noResults`; merged with global and default labels. See Internationalization below. |
 
 ### Goto Actions (Event-First)
 
@@ -453,7 +499,8 @@ const gotoDetails = (event: Event, row: User) => {
 
 | Event                      | Payload                         | Description                                                                                                                                                                              |
 | -------------------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `row-click`                | `(event: MouseEvent, row: Row)` | Emitted when a row is clicked. Useful for custom navigation or row selection logic.                                                                                                      |
+| `row-click`                | `(event: MouseEvent, row: Row)` | Emitted when a row is clicked or activated with Enter. Keyboard activation emits a synthetic mouse click. |
+| `request`                  | `({ pagination, filter })`      | Emitted for server-side pagination, sorting, or filter requests. |
 | `update-togglable-columns` | `ColumnKey[]`                   | Emitted when the user toggles column visibility. Payload is an array of currently visible column keys. Use this to store column preferences in localStorage or other persistent storage. |
 
 ### Persisting Column Visibility
@@ -590,6 +637,7 @@ Alternatively, if you don't use global setup, pass `i18n` to individual componen
     :data="rows"
     :i18n="{
       addButton: 'Add',
+      noData: 'No records yet',
       columnsLabel: 'Columns',
       rowsPerPageLabel: 'Rows per page',
     }"
@@ -612,6 +660,7 @@ The following labels can be customized:
 | `editableToggle`       | 'Editable'                                  | Editable mode toggle title                         |
 | `cloneButtonTitle`     | 'Clone'                                     | Clone row button title                             |
 | `deleteButtonTitle`    | 'Delete'                                    | Delete row button title                            |
+| `gotoButtonTitle`      | 'Go to details'                             | Fallback label for goto actions without a label    |
 | `datePickerNow`        | 'Now'                                       | Date picker "set to now" button                    |
 | `datePickerClear`      | 'Clear'                                     | Date picker clear button                           |
 | `datePickerClose`      | 'Close'                                     | Date picker close button                           |

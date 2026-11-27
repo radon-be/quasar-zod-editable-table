@@ -8,7 +8,7 @@
     @update:pagination="onPaginationUpdate"
     @request="onTableRequest"
     v-bind="$attrs"
-    :hide-bottom="false"
+    :hide-bottom="props.hideBottom"
     :hide-pagination="false"
     :no-data-label="i18n.noData"
     :no-results-label="i18n.noResults"
@@ -29,7 +29,12 @@
       </q-tr>
     </template>
     <template v-slot:body="slotProps">
-      <q-tr :props="slotProps" @click="(event: MouseEvent) => emit('row-click', event, slotProps.row)">
+      <q-tr
+        :props="slotProps"
+        :tabindex="hasRowClickListener() ? 0 : undefined"
+        @click="(event: MouseEvent) => emit('row-click', event, slotProps.row)"
+        @keydown.enter.self="activateRow"
+      >
         <q-td
           v-for="col in slotProps.cols as (QTableColumn & ZodTableColumnProps)[]"
           :key="col.name"
@@ -41,7 +46,14 @@
         >
           <!-- Dynamic slot for custom cell rendering: body-cell-[name] -->
           <!-- boolean, dropdown and datepicker columns don't use popup edit -->
-          <slot :name="`body-cell-${col.name}`" v-bind="slotProps" :col="col" :row="slotProps.row">
+          <slot
+            :name="`body-cell-${col.name}`"
+            v-bind="slotProps"
+            :col="col"
+            :row="slotProps.row"
+            :expanded="slotProps.expand"
+            :toggle-expand="() => (slotProps.expand = !slotProps.expand)"
+          >
             <q-checkbox
               v-if="col.colEditType === 'boolean'"
               :model-value="getNestedValue(slotProps.row, col.name)"
@@ -212,28 +224,32 @@
                   :href="toRowValue(gotoRow.href, slotProps.row)"
                   :target="toRowValue(gotoRow.target, slotProps.row)"
                   :rel="toRowValue(gotoRow.rel, slotProps.row)"
-                  size="sm"
-                  dense
+                  :size="rowActionSize"
+                  :dense="rowActionDense"
                   :color="toRowValue(gotoRow.color, slotProps.row, 'primary')"
                   @click.stop="gotoRow.handler($event, slotProps.row)"
                   @auxclick="gotoRow.handler($event, slotProps.row)"
-                  :title="toRowValue(gotoRow.label, slotProps.row)"
+                  :aria-label="toRowValue(gotoRow.label, slotProps.row, i18n.gotoButtonTitle)"
+                  :title="toRowValue(gotoRow.label, slotProps.row, i18n.gotoButtonTitle)"
                   :disabled="toRowValue(gotoRow.disabled, slotProps.row)"
                   :style="
                     typeof gotoRow.visible === 'undefined' || toRowValue(gotoRow.visible, slotProps.row)
                       ? 'visibility: visible'
                       : 'visibility: hidden; pointer-events: none'
                   "
-                />
+                >
+                  <q-tooltip>{{ toRowValue(gotoRow.label, slotProps.row, i18n.gotoButtonTitle) }}</q-tooltip>
+                </q-btn>
               </template>
             </template>
             <q-btn
               :icon="toRowValue(normalizedCloneRow?.icon, slotProps.row, 'content_copy')"
-              size="sm"
-              dense
+              :size="rowActionSize"
+              :dense="rowActionDense"
               :color="toRowValue(normalizedCloneRow?.color, slotProps.row, 'primary')"
               :disabled="toRowValue(normalizedCloneRow?.disabled, slotProps.row)"
               @click.stop="normalizedCloneRow?.handler($event, slotProps.row)"
+              :aria-label="toRowValue(normalizedCloneRow?.label, slotProps.row, i18n.cloneButtonTitle)"
               :title="toRowValue(normalizedCloneRow?.label, slotProps.row, i18n.cloneButtonTitle)"
               :style="
                 editable &&
@@ -243,11 +259,13 @@
                   ? 'visibility: visible'
                   : 'visibility: hidden; pointer-events: none'
               "
-            />
+            >
+              <q-tooltip>{{ toRowValue(normalizedCloneRow?.label, slotProps.row, i18n.cloneButtonTitle) }}</q-tooltip>
+            </q-btn>
             <q-btn
               :icon="toRowValue(normalizedDeleteRow?.icon, slotProps.row, 'delete')"
-              size="sm"
-              dense
+              :size="rowActionSize"
+              :dense="rowActionDense"
               :color="toRowValue(normalizedDeleteRow?.color, slotProps.row, 'negative')"
               :disabled="toRowValue(normalizedDeleteRow?.disabled, slotProps.row)"
               @click.stop="
@@ -255,6 +273,7 @@
                   ? confirmDelete(slotProps.row)
                   : triggerDeleteRow(slotProps.row)
               "
+              :aria-label="toRowValue(normalizedDeleteRow?.label, slotProps.row, i18n.deleteButtonTitle)"
               :title="toRowValue(normalizedDeleteRow?.label, slotProps.row, i18n.deleteButtonTitle)"
               :style="
                 canDelete &&
@@ -263,8 +282,20 @@
                   ? 'visibility: visible'
                   : 'visibility: hidden; pointer-events: none'
               "
-            />
+            >
+              <q-tooltip>{{ toRowValue(normalizedDeleteRow?.label, slotProps.row, i18n.deleteButtonTitle) }}</q-tooltip>
+            </q-btn>
           </div>
+        </q-td>
+      </q-tr>
+      <q-tr v-if="$slots.expand && slotProps.expand" :key="`${slotProps.key}-expanded`" :props="slotProps">
+        <q-td colspan="100%">
+          <slot
+            name="expand"
+            v-bind="slotProps"
+            :expanded="slotProps.expand"
+            :toggle-expand="() => (slotProps.expand = !slotProps.expand)"
+          />
         </q-td>
       </q-tr>
     </template>
@@ -377,13 +408,41 @@
 </template>
 
 <script setup lang="ts" generic="T extends z.ZodRawShape">
-import { date, QDate, QTableColumn, QTime, useQuasar } from 'quasar'
+import {
+  ClosePopup as vClosePopup,
+  date,
+  QBtn,
+  QCheckbox,
+  QDate,
+  QIcon,
+  QInput,
+  QPopupEdit,
+  QPopupProxy,
+  QSelect,
+  QSpace,
+  QTable,
+  QTableColumn,
+  QTd,
+  QTh,
+  QTime,
+  QToggle,
+  QTooltip,
+  QTr,
+  useQuasar,
+} from 'quasar'
 import { capitalize, intersects } from 'radashi'
-import { computed, ref, useAttrs } from 'vue'
+import { computed, getCurrentInstance, ref, useAttrs } from 'vue'
 import z from 'zod'
 import { useZodTableI18n } from '../composables/useZodTableI18n'
 import { useDateTimeModel } from './datetime-composables'
-import { ColEditType, getColumnInfo, numericProps, visualProps, ZodTableColumnProps } from './edit-utils'
+import {
+  ColEditType,
+  getColumnInfo,
+  numericProps,
+  visualProps,
+  ZodTableColumnOptions,
+  ZodTableColumnProps,
+} from './edit-utils'
 import { flattenSchema, getNestedValue, setNestedValue } from './nest-utils'
 import {
   CloneRowAction,
@@ -409,6 +468,7 @@ const defaultI18n: I18nLabels = {
   editableToggle: 'Editable',
   cloneButtonTitle: 'Clone',
   deleteButtonTitle: 'Delete',
+  gotoButtonTitle: 'Go to details',
   datePickerNow: 'Now',
   datePickerClear: 'Clear',
   datePickerClose: 'Close',
@@ -444,7 +504,7 @@ const props = withDefaults(
   defineProps<{
     rowModel: z.ZodObject<T>
     columnLabels?: Partial<Record<ColumnKey, string>>
-    extraColumnOptions?: Partial<Record<ColumnKey, ZodTableColumnProps>>
+    extraColumnOptions?: Partial<Record<ColumnKey, ZodTableColumnOptions>>
     rowKey: ColumnKey
     data: Row[]
     rowsPerPageOptions?: number[]
@@ -464,12 +524,17 @@ const props = withDefaults(
     gotoRow?: ((event: Event, row: Row) => MaybePromise<void>) | GotoAction<Row> | Array<GotoAction<Row>>
     actions?: Action[]
     i18n?: Partial<I18nLabels>
+    hideBottom?: boolean
+    rowActionSize?: string
+    rowActionDense?: boolean
   }>(),
   {
     headerClass: '',
     headerStyle: '',
     rowsPerPageOptions: () => [10, 15, 20, 25, 50, 100, 250, 500],
     actions: () => [],
+    rowActionSize: 'sm',
+    rowActionDense: true,
   },
 )
 
@@ -491,6 +556,15 @@ const pagination = defineModel<PaginationModel>('pagination', {
 })
 
 const attrs = useAttrs()
+const instance = getCurrentInstance()
+const hasRowClickListener = () => !!instance?.vnode.props?.onRowClick
+const activateRow = (event: KeyboardEvent) => {
+  if (hasRowClickListener()) {
+    event.preventDefault()
+    const row = event.currentTarget as HTMLElement
+    row.click()
+  }
+}
 const onTableRequest = (request: TableRequest) => emit('request', request)
 
 const onRowsPerPageChange = (rowsPerPage: number) => {

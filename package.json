@@ -12,15 +12,16 @@
       "types": "./dist/types/components.d.ts",
       "import": "./dist/components.js"
     },
+    "./style.css": "./dist/quasar-app-extension-zod-table.css",
     "./package.json": "./package.json",
     "./dist/*": "./dist/*"
   },
   "scripts": {
-    "test": "echo \"No test specified\" && exit 0",
-    "build:js": "tsc && copyfiles -u 1 src/**/*.vue dist",
+    "test": "npm run build && vue-tsc --noEmit -p tests/consumer/tsconfig.json && node --test tests/*.test.mjs",
+    "build:js": "vite build",
     "build:types": "vue-tsc --declaration --emitDeclarationOnly --declarationDir dist/types -p tsconfig.json",
     "build": "npm run build:js && npm run build:types",
-    "watch": "tsc --watch",
+    "watch": "vite build --watch",
     "prepublishOnly": "npm run build",
     "pack:local": "npm run build && npm pack --pack-destination playground-for-package"
   },
@@ -38,10 +39,11 @@
   "devDependencies": {
     "@quasar/app-vite": "^2.4.0",
     "@types/node": "^25.2.0",
-    "copyfiles": "^2.4.1",
+    "@vitejs/plugin-vue": "^6.0.4",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
-    "vue-tsc": "^2.1.10"
+    "vite": "^7.3.1",
+    "vue-tsc": "^3.3.3"
   },
   "files": [
     "dist",

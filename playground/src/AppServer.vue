@@ -29,11 +29,29 @@
       :data="rows"
       :filter="filter"
       :loading="loading"
+      :extra-column-options="{ appointments: { sortable: false } }"
       v-model:pagination="pagination"
       flat
       bordered
       @request="handleRequest"
-    />
+      @row-click="handleRowClick"
+    >
+      <template #body-cell-name="{ row, expanded, toggleExpand }">
+        <q-btn
+          flat
+          dense
+          :icon="expanded ? 'expand_less' : 'expand_more'"
+          :aria-label="expanded ? 'Hide details' : 'Show details'"
+          :aria-expanded="expanded"
+          @click.stop="toggleExpand"
+        />
+        {{ row.name }}
+      </template>
+      <template #expand="{ row }">
+        {{ row.name }}: {{ row.appointments }} appointments
+      </template>
+    </ZodTable>
+    <div v-if="selectedRow" class="q-mt-sm">Selected: {{ selectedRow.name }}</div>
   </main>
 </template>
 
@@ -81,6 +99,7 @@ const mockDatabase: ServerRow[] = Array.from({ length: 127 }, (_, index) =>
 const rows = ref<ServerRow[]>([])
 const filter = ref('')
 const loading = ref(false)
+const selectedRow = ref<ServerRow>()
 const pagination = ref<ServerPagination>({
   page: 1,
   rowsPerPage: 10,
@@ -90,6 +109,10 @@ const pagination = ref<ServerPagination>({
 })
 
 let latestRequest = 0
+
+function handleRowClick(_event: MouseEvent, row: ServerRow) {
+  selectedRow.value = row
+}
 
 async function handleRequest(request: ServerRequest) {
   const requestId = ++latestRequest
